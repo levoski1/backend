@@ -373,8 +373,82 @@ npm run db:rollback
 - **Naming:** `snake_case` for tables and columns; plural table names (e.g., `prayer_circles`, `circle_members`).
 - **Timestamps:** Every table includes `created_at` and `updated_at` with `DEFAULT NOW()`.
 - **Soft deletes:** Use `deleted_at` (nullable timestamp) for recoverable resources.
-- **Indexing:** Composite indexes on foreign key + timestamp combinations for feed queries.
-- **Audit columns:** `created_by`, `updated_by` reference the user UUID for traceability.
+- **Indexing:** B-tree indexes on foreign keys, lookup columns, and range queries.
+- **Audit columns:** `user_id` foreign keys for traceability on all domain tables.
+
+### Schema Overview
+
+The initial migration creates four tables covering authentication, user profiles, session management, and system auditing.
+
+#### `users`
+
+Core authentication and identity record. Email is unique and used as the primary login identifier. The `display_name` is the user's chosen pseudonym for public-facing community interactions.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | `UUID` | `PK`, `DEFAULT gen_random_uuid()` | |
+| `display_name` | `VARCHAR(50)` | `NOT NULL` | Public pseudonym |
+| `email` | `VARCHAR(255)` | `NOT NULL`, `UNIQUE` | Login identifier |
+| `password_hash` | `VARCHAR(255)` | `NOT NULL` | bcrypt hash |
+| `role` | `VARCHAR(20)` | `NOT NULL`, `CHECK` | One of: `user`, `circle_admin`, `content_author`, `counselor`, `admin` |
+| `is_active` | `BOOLEAN` | `NOT NULL`, `DEFAULT true` | Soft disable |
+| `is_verified` | `BOOLEAN` | `NOT NULL`, `DEFAULT false` | Email verified |
+| `last_login_at` | `TIMESTAMPTZ` | | |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `DEFAULT NOW()` | |
+| `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, `DEFAULT NOW()` | |
+| `deleted_at` | `TIMESTAMPTZ` | | Soft delete |
+
+**Indexes:** `email` (unique), `role`, `deleted_at`
+
+#### `profiles`
+
+One-to-one extension of `users` containing public-facing profile data. Fully anonymized — no real-world identifiers are stored here.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | `UUID` | `PK`, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `UUID` | `NOT NULL`, `UNIQUE`, `FK → users(id) ON DELETE CASCADE` | |
+| `display_name` | `VARCHAR(50)` | `NOT NULL` | May differ from auth name |
+| `bio` | `TEXT` | | |
+| `avatar_url` | `VARCHAR(512)` | | S3 pre-signed URL |
+| `spiritual_interests` | `JSONB` | `DEFAULT '[]'` | e.g. `["prayer", "bible-study"]` |
+| `timezone` | `VARCHAR(50)` | `DEFAULT 'UTC'` | IANA timezone |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `DEFAULT NOW()` | |
+| `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, `DEFAULT NOW()` | |
+
+#### `refresh_tokens`
+
+Tracks JWT refresh tokens for session management and token rotation. Each refresh token belongs to a `family_id` — when a token in a family is used to refresh, the old token is revoked and a new one is issued. If a revoked token is presented, the entire family is invalidated.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | `UUID` | `PK`, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `UUID` | `NOT NULL`, `FK → users(id) ON DELETE CASCADE` | |
+| `token_hash` | `VARCHAR(255)` | `NOT NULL` | SHA-256 of raw token |
+| `device_fingerprint` | `VARCHAR(255)` | | Device-bound for theft detection |
+| `family_id` | `UUID` | `NOT NULL` | Rotation family identifier |
+| `expires_at` | `TIMESTAMPTZ` | `NOT NULL` | |
+| `revoked_at` | `TIMESTAMPTZ` | | Null = active |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `DEFAULT NOW()` | |
+
+**Indexes:** `token_hash`, `user_id`, `family_id`, `expires_at`
+
+#### `audit_logs`
+
+Immutable audit trail for sensitive operations, especially counselor-client interactions and role changes.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | `UUID` | `PK`, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `UUID` | `FK → users(id) ON DELETE SET NULL` | Nullable for anonymous actions |
+| `action` | `VARCHAR(100)` | `NOT NULL` | e.g. `user.login`, `counseling.session.created` |
+| `resource` | `VARCHAR(100)` | | Resource type |
+| `resource_id` | `UUID` | | Affected resource |
+| `metadata` | `JSONB` | | Arbitrary event payload |
+| `ip_address` | `VARCHAR(45)` | | IPv4 or IPv6 |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `DEFAULT NOW()` | |
+
+**Indexes:** `user_id`, `action`, `created_at`
 
 ---
 

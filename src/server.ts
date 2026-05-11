@@ -1,0 +1,47 @@
+import http from 'node:http';
+import { env } from './config/env.js';
+import { logger } from './shared/logging/logger.js';
+import app from './app.js';
+
+const server = http.createServer(app);
+
+function gracefulShutdown(signal: string) {
+  logger.info({ signal }, 'Received shutdown signal — draining connections');
+
+  server.close(() => {
+    logger.info('HTTP server closed — exiting process');
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    logger.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 30_000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'Unhandled promise rejection — shutting down');
+  gracefulShutdown('unhandledRejection');
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error({ err: error }, 'Uncaught exception — shutting down');
+  gracefulShutdown('uncaughtException');
+});
+
+server.listen(env.PORT, env.HOST, () => {
+  logger.info(
+    {
+      port: env.PORT,
+      host: env.HOST,
+      env: env.NODE_ENV,
+      apiPrefix: env.API_PREFIX,
+    },
+    'Shelter API server started',
+  );
+});
+
+export default server;

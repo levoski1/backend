@@ -1,15 +1,18 @@
 import http from 'node:http';
 import { env } from './config/env.js';
 import { logger } from './shared/logging/logger.js';
+import { getDb, destroyDb } from './infrastructure/database/connection.js';
 import app from './app.js';
 
 const server = http.createServer(app);
 
-function gracefulShutdown(signal: string) {
+async function gracefulShutdown(signal: string) {
   logger.info({ signal }, 'Received shutdown signal — draining connections');
 
-  server.close(() => {
-    logger.info('HTTP server closed — exiting process');
+  server.close(async () => {
+    logger.info('HTTP server closed');
+    await destroyDb();
+    logger.info('Database pool closed — exiting process');
     process.exit(0);
   });
 
@@ -31,6 +34,14 @@ process.on('uncaughtException', (error) => {
   logger.error({ err: error }, 'Uncaught exception — shutting down');
   gracefulShutdown('uncaughtException');
 });
+
+try {
+  getDb();
+  logger.info('Database connection pool initialized');
+} catch (error) {
+  logger.error({ err: error }, 'Failed to initialize database pool');
+  process.exit(1);
+}
 
 server.listen(env.PORT, env.HOST, () => {
   logger.info(

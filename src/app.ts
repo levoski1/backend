@@ -9,6 +9,7 @@ import { requestContext } from './interfaces/http/middleware/request-context.js'
 import { ErrorHandler } from './interfaces/http/middleware/error-handler.js';
 import { globalRateLimiter } from './interfaces/http/middleware/rate-limiter.js';
 import { requestTimeout } from './interfaces/http/middleware/timeout.js';
+import { pingDb } from './infrastructure/database/connection.js';
 
 const app = express();
 
@@ -46,15 +47,19 @@ app.use(requestContext);
 app.use(requestTimeout);
 
 // ─── Health Check ───────────────────────────────────────
-app.get(`${env.API_PREFIX}/health`, (_req, res) => {
-  res.json({
-    success: true,
+app.get(`${env.API_PREFIX}/health`, async (_req, res) => {
+  const dbOk = await pingDb();
+  const status = dbOk ? 'healthy' : 'degraded';
+
+  res.status(dbOk ? 200 : 503).json({
+    success: dbOk,
     data: {
-      status: 'healthy',
+      status,
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
       memory: process.memoryUsage(),
       nodeVersion: process.version,
+      database: dbOk ? 'connected' : 'disconnected',
     },
   });
 });
@@ -69,3 +74,4 @@ app.get(`${env.API_PREFIX}/health`, (_req, res) => {
 app.use(ErrorHandler.handle);
 
 export default app;
+

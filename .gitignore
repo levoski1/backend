@@ -41,6 +41,9 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+# ─── Local PostgreSQL Data ───────────────────────────────
+.pgdata/
+
 # ─── Misc ────────────────────────────────────────────────
 .tmp/
 .temp/

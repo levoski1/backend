@@ -11,7 +11,8 @@ module.exports = {
       env_development: {
         NODE_ENV: 'development',
         script: 'src/server.ts',
-        interpreter: 'ts-node',
+        interpreter: 'tsx',
+        interpreter_args: 'watch',
       },
       max_memory_restart: '512M',
       restart_delay: 5000,

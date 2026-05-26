@@ -10,6 +10,7 @@ import { ErrorHandler } from './interfaces/http/middleware/error-handler.js';
 import { globalRateLimiter } from './interfaces/http/middleware/rate-limiter.js';
 import { requestTimeout } from './interfaces/http/middleware/timeout.js';
 import { pingDb } from './infrastructure/database/connection.js';
+import authRouter from './interfaces/http/routes/auth-routes.js';
 
 const app = express();
 
@@ -65,8 +66,7 @@ app.get(`${env.API_PREFIX}/health`, async (_req, res) => {
 });
 
 // ─── Routes ─────────────────────────────────────────────
-// Mount domain routes here as feature modules are built:
-// app.use(`${env.API_PREFIX}/auth`, authRouter);
+app.use(`${env.API_PREFIX}/auth`, authRouter);
 // app.use(`${env.API_PREFIX}/profiles`, profileRouter);
 // app.use(`${env.API_PREFIX}/feed`, feedRouter);
 

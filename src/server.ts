@@ -2,6 +2,7 @@ import http from 'node:http';
 import { env } from './config/env.js';
 import { logger } from './shared/logging/logger.js';
 import { getDb, destroyDb } from './infrastructure/database/connection.js';
+import { getRedis, destroyRedis } from './infrastructure/cache/connection.js';
 import app from './app.js';
 
 const server = http.createServer(app);
@@ -12,7 +13,8 @@ async function gracefulShutdown(signal: string) {
   server.close(async () => {
     logger.info('HTTP server closed');
     await destroyDb();
-    logger.info('Database pool closed — exiting process');
+    await destroyRedis();
+    logger.info('All connections closed — exiting process');
     process.exit(0);
   });
 
@@ -40,6 +42,14 @@ try {
   logger.info('Database connection pool initialized');
 } catch (error) {
   logger.error({ err: error }, 'Failed to initialize database pool');
+  process.exit(1);
+}
+
+try {
+  getRedis();
+  logger.info('Redis client initialized');
+} catch (error) {
+  logger.error({ err: error }, 'Failed to initialize Redis client');
   process.exit(1);
 }
 

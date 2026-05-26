@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: shelter-api
+    env: docker
+    rootDir: docker
+    dockerfilePath: Dockerfile
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_FORMAT
+        value: json
+      - key: CORS_ORIGINS
+        value: https://your-frontend-domain.com
+      - key: DB_HOST
+        fromService:
+          type: external
+          name: Supabase
+          property: host
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        value: postgres
+      - key: DB_PASSWORD
+        sync: false
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: shelter-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: shelter-redis
+          property: port
+      - key: REDIS_PASSWORD
+        fromService:
+          type: redis
+          name: shelter-redis
+          property: password
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+
+  - type: redis
+    name: shelter-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru

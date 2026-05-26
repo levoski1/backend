@@ -1,5 +1,7 @@
 require('dotenv').config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 module.exports = {
   client: 'pg',
   connection: {
@@ -8,6 +10,7 @@ module.exports = {
     database: process.env.DB_NAME || 'shelter',
     user: process.env.DB_USER || 'shelter_app',
     password: process.env.DB_PASSWORD || '',
+    ...(isProduction ? { ssl: { rejectUnauthorized: false } } : {}),
   },
   pool: {
     min: parseInt(process.env.DB_POOL_MIN || '2', 10),

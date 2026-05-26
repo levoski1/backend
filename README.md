@@ -382,23 +382,26 @@ The initial migration creates four tables covering authentication, user profiles
 
 #### `users`
 
-Core authentication and identity record. Email is unique and used as the primary login identifier. The `display_name` is the user's chosen pseudonym for public-facing community interactions.
+Core authentication and identity record. Email is used as the primary login identifier. The `full_name` is the user's legal or preferred name. Faith profile data, profile photo, and privacy preferences are denormalized onto the users table for query efficiency.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | `id` | `UUID` | `PK`, `DEFAULT gen_random_uuid()` | |
-| `display_name` | `VARCHAR(50)` | `NOT NULL` | Public pseudonym |
+| `full_name` | `VARCHAR(50)` | `NOT NULL` | Legal or preferred full name |
 | `email` | `VARCHAR(255)` | `NOT NULL`, `UNIQUE` | Login identifier |
 | `password_hash` | `VARCHAR(255)` | `NOT NULL` | bcrypt hash |
+| `auth_provider` | `VARCHAR(20)` | `NOT NULL`, `DEFAULT 'email'` | One of: `email`, `google`, `apple` |
+| `account_status` | `VARCHAR(20)` | `NOT NULL`, `DEFAULT 'active'`, `CHECK` | One of: `active`, `suspended`, `banned` |
 | `role` | `VARCHAR(20)` | `NOT NULL`, `CHECK` | One of: `user`, `circle_admin`, `content_author`, `counselor`, `admin` |
-| `is_active` | `BOOLEAN` | `NOT NULL`, `DEFAULT true` | Soft disable |
-| `is_verified` | `BOOLEAN` | `NOT NULL`, `DEFAULT false` | Email verified |
+| `email_verified` | `BOOLEAN` | `NOT NULL`, `DEFAULT false` | |
+| `profile_photo_url` | `VARCHAR(512)` | | S3 pre-signed URL |
+| `privacy_settings` | `JSONB` | `DEFAULT '{"profileVisibility":"public","showFaithInfo":true}'` | Visibility and sharing preferences |
 | `last_login_at` | `TIMESTAMPTZ` | | |
 | `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `DEFAULT NOW()` | |
 | `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, `DEFAULT NOW()` | |
 | `deleted_at` | `TIMESTAMPTZ` | | Soft delete |
 
-**Indexes:** `email` (unique), `role`, `deleted_at`
+**Indexes:** `email` (unique), `role`, `account_status`, `deleted_at`
 
 #### `profiles`
 
@@ -408,8 +411,9 @@ One-to-one extension of `users` containing public-facing profile data. Fully ano
 |--------|------|-------------|-------|
 | `id` | `UUID` | `PK`, `DEFAULT gen_random_uuid()` | |
 | `user_id` | `UUID` | `NOT NULL`, `UNIQUE`, `FK → users(id) ON DELETE CASCADE` | |
-| `display_name` | `VARCHAR(50)` | `NOT NULL` | May differ from auth name |
+| `display_name` | `VARCHAR(50)` | `NOT NULL` | Public pseudonym (may differ from full_name) |
 | `bio` | `TEXT` | | |
+| `denomination` | `VARCHAR(100)` | | Faith tradition (e.g. Catholic, Protestant) |
 | `avatar_url` | `VARCHAR(512)` | | S3 pre-signed URL |
 | `spiritual_interests` | `JSONB` | `DEFAULT '[]'` | e.g. `["prayer", "bible-study"]` |
 | `timezone` | `VARCHAR(50)` | `DEFAULT 'UTC'` | IANA timezone |

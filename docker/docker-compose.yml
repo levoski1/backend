@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   api:
     build:
@@ -24,6 +22,11 @@ services:
       DB_PASSWORD: local_dev
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: cbc1354241795f84900f821aa6f18c23563b4a19f66c64d5ddfab2f1c0381bce
+      JWT_REFRESH_SECRET: 1be77101abb5021d68d4e981912465f3f764fc3a479f22b64560732a8f9afaa6
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      BCRYPT_SALT_ROUNDS: 12
       LOG_LEVEL: debug
       LOG_FORMAT: pretty
       REQUEST_TIMEOUT_MS: 30000
@@ -40,7 +43,7 @@ services:
       POSTGRES_USER: shelter_app
       POSTGRES_PASSWORD: local_dev
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

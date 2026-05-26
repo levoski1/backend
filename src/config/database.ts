@@ -35,7 +35,7 @@ function connectionConfig(): Knex.Config {
       ...commonConfig,
       connection: {
         ...base,
-        ssl: { rejectUnauthorized: true },
+        ssl: { rejectUnauthorized: false },
       },
     };
   }

@@ -6,15 +6,24 @@ let redis: Redis | null = null;
 
 export function getRedis(): Redis {
   if (!redis) {
-    redis = new Redis({
-      host: env.REDIS_HOST,
-      port: env.REDIS_PORT,
-      ...(env.REDIS_PASSWORD ? { password: env.REDIS_PASSWORD } : {}),
-      retryStrategy: (times) => Math.min(times * 100, 3000),
-      maxRetriesPerRequest: null,
-      enableReadyCheck: true,
-      lazyConnect: true,
-    });
+    if (env.REDIS_URL) {
+      redis = new Redis(env.REDIS_URL, {
+        retryStrategy: (times) => Math.min(times * 100, 3000),
+        maxRetriesPerRequest: null,
+        enableReadyCheck: true,
+        lazyConnect: true,
+      });
+    } else {
+      redis = new Redis({
+        host: env.REDIS_HOST,
+        port: env.REDIS_PORT,
+        ...(env.REDIS_PASSWORD ? { password: env.REDIS_PASSWORD } : {}),
+        retryStrategy: (times) => Math.min(times * 100, 3000),
+        maxRetriesPerRequest: null,
+        enableReadyCheck: true,
+        lazyConnect: true,
+      });
+    }
 
     redis.on('connect', () => logger.info('Redis connected'));
     redis.on('ready', () => logger.info('Redis ready'));

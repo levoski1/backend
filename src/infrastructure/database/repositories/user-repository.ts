@@ -7,8 +7,8 @@ import {
   PrivacySettings,
   accountStatusFromString,
   authProviderFromString,
-} from '@domain/index';
-import { InternalError } from '@shared/errors';
+} from '../../../domain/index.js';
+import { InternalError } from '../../../shared/errors/index.js';
 import type { Knex } from '../connection.js';
 
 interface UserRow {

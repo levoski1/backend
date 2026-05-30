@@ -2,8 +2,7 @@ services:
   - type: web
     name: shelter-api
     env: docker
-    rootDir: docker
-    dockerfilePath: Dockerfile
+    dockerfilePath: docker/Dockerfile
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
@@ -18,11 +17,11 @@ services:
           name: Supabase
           property: host
       - key: DB_PORT
-        value: "5432"
+        value: "6543"
       - key: DB_NAME
         value: postgres
       - key: DB_USER
-        value: postgres
+        sync: false
       - key: DB_PASSWORD
         sync: false
       - key: REDIS_HOST

@@ -1,8 +1,8 @@
 import bcrypt from 'bcrypt';
-import { User, Email, PasswordHash, AuthProvider } from '@domain/index';
-import { UserRepository } from '@infrastructure/database/repositories/user-repository';
-import { env } from '@config/env';
-import { ConflictError, AuthenticationError } from '@shared/errors';
+import { User, Email, PasswordHash, AuthProvider } from '../../domain/index.js';
+import { UserRepository } from '../../infrastructure/database/repositories/user-repository.js';
+import { env } from '../../config/env.js';
+import { ConflictError, AuthenticationError } from '../../shared/errors/index.js';
 
 export interface RegisterParams {
   fullName: string;

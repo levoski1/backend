@@ -1,10 +1,10 @@
-import type { Email, PasswordHash, PhotoUrl, FaithProfile } from '@domain/value-objects';
+import type { Email, PasswordHash, PhotoUrl, FaithProfile } from '../value-objects/index.js';
 import {
   AccountStatus,
   AuthProvider,
   PrivacySettings,
-} from '@domain/value-objects';
-import { ValidationError } from '@shared/errors';
+} from '../value-objects/index.js';
+import { ValidationError } from '../../shared/errors/index.js';
 
 export interface UserParams {
   id: string;

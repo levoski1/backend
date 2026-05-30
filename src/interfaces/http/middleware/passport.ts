@@ -1,7 +1,7 @@
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcrypt';
-import { UserRepository } from '@infrastructure/database/repositories/user-repository';
+import { UserRepository } from '../../../infrastructure/database/repositories/user-repository.js';
 
 const userRepo = new UserRepository();
 

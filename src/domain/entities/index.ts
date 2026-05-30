@@ -1,2 +1,2 @@
-export { User } from './user';
-export type { UserParams } from './user';
+export { User } from './user.js';
+export type { UserParams } from './user.js';

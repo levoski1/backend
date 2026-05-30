@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { validate } from '../middleware/validate';
-import { authRateLimiter } from '../middleware/rate-limiter';
-import { registerSchema, loginSchema } from '../validators/auth-validators';
-import { register, login } from '../controllers/auth-controller';
-import '../middleware/passport';
+import { validate } from '../middleware/validate.js';
+import { authRateLimiter } from '../middleware/rate-limiter.js';
+import { registerSchema, loginSchema } from '../validators/auth-validators.js';
+import { register, login } from '../controllers/auth-controller.js';
+import '../middleware/passport.js';
 
 const router = Router();
 

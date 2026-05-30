@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
-import type { User } from '@domain/index';
-import { AuthService } from '@application/auth/auth-service';
-import { asyncHandler } from '@shared/utils';
+import type { User } from '../../../domain/index.js';
+import { AuthService } from '../../../application/auth/auth-service.js';
+import { asyncHandler } from '../../../shared/utils/index.js';
 
 const authService = new AuthService();
 

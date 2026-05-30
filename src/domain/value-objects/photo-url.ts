@@ -1,4 +1,4 @@
-import { ValidationError } from '@shared/errors';
+import { ValidationError } from '../../shared/errors/index.js';
 
 export class PhotoUrl {
   private static readonly MAX_LENGTH = 512;

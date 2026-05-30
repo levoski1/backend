@@ -3,7 +3,6 @@ dist/
 .git/
 .env
 .env.*
-*.md
 tests/
 coverage/
 logs/
@@ -11,5 +10,4 @@ docs/
 .eslintrc.json
 .prettierrc
 jest.config.ts
-tsconfig.json
 docker/data/

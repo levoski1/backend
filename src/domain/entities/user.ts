@@ -6,6 +6,8 @@ import {
 } from '../value-objects/index.js';
 import { ValidationError } from '../../shared/errors/index.js';
 
+export type UserRole = 'user' | 'admin' | 'moderator';
+
 export interface UserParams {
   id: string;
   fullName: string;
@@ -17,6 +19,7 @@ export interface UserParams {
   privacySettings: PrivacySettings;
   createdAt: Date;
   updatedAt: Date;
+  role?: UserRole;
   profilePhotoUrl?: PhotoUrl;
   faithProfile?: FaithProfile;
 }
@@ -30,6 +33,7 @@ export class User {
   public readonly authProvider: AuthProvider;
   public readonly emailVerified: boolean;
   public readonly privacySettings: PrivacySettings;
+  public readonly role: UserRole;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
   public readonly profilePhotoUrl?: PhotoUrl;
@@ -47,6 +51,7 @@ export class User {
     this.authProvider = params.authProvider;
     this.emailVerified = params.emailVerified;
     this.privacySettings = params.privacySettings;
+    this.role = params.role ?? 'user';
     this.createdAt = params.createdAt;
     this.updatedAt = params.updatedAt;
     this.profilePhotoUrl = params.profilePhotoUrl;
@@ -156,6 +161,7 @@ export class User {
       authProvider: this.authProvider,
       emailVerified: this.emailVerified,
       privacySettings: this.privacySettings,
+      role: this.role,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       profilePhotoUrl: this.profilePhotoUrl,

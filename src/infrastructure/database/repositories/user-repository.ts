@@ -41,6 +41,7 @@ function rowToUser(row: UserRow): User {
       profileVisibility: (row.privacy_settings?.profileVisibility as 'public' | 'private') ?? 'public',
       showFaithInfo: (row.privacy_settings?.showFaithInfo as boolean) ?? true,
     }),
+    role: row.role as 'user' | 'admin' | 'moderator' | undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     profilePhotoUrl: row.profile_photo_url ? PhotoUrl.create(row.profile_photo_url) : undefined,

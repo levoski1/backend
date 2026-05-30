@@ -34,7 +34,7 @@
     "db:migrate:make": "node --import tsx/esm ./node_modules/knex/bin/cli.js migrate:make --knexfile knexfile.cjs",
     "db:rollback": "node --import tsx/esm ./node_modules/knex/bin/cli.js migrate:rollback --knexfile knexfile.cjs",
     "db:seed": "node --import tsx/esm ./node_modules/knex/bin/cli.js seed:run --knexfile knexfile.cjs",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

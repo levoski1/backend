@@ -12,10 +12,7 @@ services:
       - key: CORS_ORIGINS
         value: https://your-frontend-domain.com
       - key: DB_HOST
-        fromService:
-          type: external
-          name: Supabase
-          property: host
+        sync: false
       - key: DB_PORT
         value: "6543"
       - key: DB_NAME
@@ -35,10 +32,7 @@ services:
           name: shelter-redis
           property: port
       - key: REDIS_PASSWORD
-        fromService:
-          type: redis
-          name: shelter-redis
-          property: password
+        sync: false
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -48,3 +42,4 @@ services:
     name: shelter-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []

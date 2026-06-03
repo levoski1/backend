@@ -16,10 +16,9 @@ const swaggerDefinition = {
       url: `http://localhost:${env.PORT}${env.API_PREFIX}`,
       description: 'Development server',
     },
-    {
-      url: `https://backend-vxbe.onrender.com${env.API_PREFIX}`,
-      description: 'Production server',
-    },
+    ...(env.RENDER_EXTERNAL_URL
+      ? [{ url: `${env.RENDER_EXTERNAL_URL}${env.API_PREFIX}`, description: 'Production server' }]
+      : []),
   ],
   components: {
     securitySchemes: {

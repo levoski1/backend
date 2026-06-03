@@ -10,6 +10,7 @@ const envSchema = z.object({
   API_PREFIX: z.string().default('/api/v1'),
   HOST: z.string().default('0.0.0.0'),
   REQUEST_TIMEOUT_MS: z.coerce.number().positive().default(30000),
+  RENDER_EXTERNAL_URL: z.string().default(''),
 
   // ─── CORS ────────────────────────────────────────────
   CORS_ORIGINS: z

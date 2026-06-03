@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { env } from './config/env.js';
+import { isLocal } from './config/environment.js';
 import { logger } from './shared/logging/logger.js';
 import { getDb, destroyDb } from './infrastructure/database/connection.js';
 import { getRedis, destroyRedis } from './infrastructure/cache/connection.js';
@@ -49,8 +50,12 @@ try {
   getRedis();
   logger.info('Redis client initialized');
 } catch (error) {
-  logger.error({ err: error }, 'Failed to initialize Redis client');
-  process.exit(1);
+  if (isLocal()) {
+    logger.warn({ err: error }, 'Redis unavailable locally — continuing without it');
+  } else {
+    logger.error({ err: error }, 'Failed to initialize Redis client');
+    process.exit(1);
+  }
 }
 
 server.listen(env.PORT, env.HOST, () => {

@@ -4,12 +4,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import responseTime from 'response-time';
+import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env.js';
 import { requestContext } from './interfaces/http/middleware/request-context.js';
 import { ErrorHandler } from './interfaces/http/middleware/error-handler.js';
 import { globalRateLimiter } from './interfaces/http/middleware/rate-limiter.js';
 import { requestTimeout } from './interfaces/http/middleware/timeout.js';
 import { pingDb } from './infrastructure/database/connection.js';
+import { swaggerSpec } from './interfaces/http/swagger/index.js';
 import authRouter from './interfaces/http/routes/auth-routes.js';
 
 const app = express();
@@ -64,6 +66,14 @@ app.get(`${env.API_PREFIX}/health`, async (_req, res) => {
     },
   });
 });
+
+// ─── API Documentation ──────────────────────────────────
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Shelter API Docs',
+}));
+
+app.get('/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // ─── Routes ─────────────────────────────────────────────
 app.use(`${env.API_PREFIX}/auth`, authRouter);

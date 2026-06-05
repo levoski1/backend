@@ -403,6 +403,48 @@ describe('AuthController', () => {
     });
   });
 
+  describe('GET /api/v1/auth/verify-email', () => {
+    it('should return 400 HTML when token is missing', async () => {
+      const response = await request(app)
+        .get('/api/v1/auth/verify-email');
+
+      expect(response.status).toBe(400);
+      expect(response.text).toContain('Invalid verification link');
+      expect(response.headers['content-type']).toMatch(/html/);
+    });
+
+    it('should return 200 HTML when verification succeeds', async () => {
+      const tokenRecord = {
+        id: 'token-id',
+        user_id: validUser.id,
+        token: 'valid-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: null,
+        created_at: new Date(),
+      };
+      mockVerificationTokenRepoMethods.findByToken!.mockResolvedValue(tokenRecord);
+      mockUserRepoMethods.findById!.mockResolvedValue(validUser);
+
+      const response = await request(app)
+        .get('/api/v1/auth/verify-email')
+        .query({ token: 'valid-token' });
+
+      expect(response.status).toBe(200);
+      expect(response.text).toContain('Email verified');
+    });
+
+    it('should return 400 HTML when verification fails', async () => {
+      mockVerificationTokenRepoMethods.findByToken!.mockResolvedValue(null);
+
+      const response = await request(app)
+        .get('/api/v1/auth/verify-email')
+        .query({ token: 'invalid-token' });
+
+      expect(response.status).toBe(400);
+      expect(response.text).toContain('Verification failed');
+    });
+  });
+
   describe('POST /api/v1/auth/resend-verification', () => {
     it('should return 200', async () => {
       mockUserRepoMethods.findByEmail!.mockResolvedValue(validUser);

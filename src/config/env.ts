@@ -54,7 +54,6 @@ const envSchema = z.object({
   // ─── Email ───────────────────────────────────────────
   RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM: z.string().default('noreply@shelter.app'),
-  APP_BASE_URL: z.string().default('http://localhost:3000'),
 
   // ─── Moderation ──────────────────────────────────────
   CONTENT_MODERATION_ENABLED: z

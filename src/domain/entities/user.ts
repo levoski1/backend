@@ -22,6 +22,7 @@ export interface UserParams {
   role?: UserRole;
   profilePhotoUrl?: PhotoUrl;
   faithProfile?: FaithProfile;
+  phoneNumber?: string;
 }
 
 export class User {
@@ -38,6 +39,7 @@ export class User {
   public readonly updatedAt: Date;
   public readonly profilePhotoUrl?: PhotoUrl;
   public readonly faithProfile?: FaithProfile;
+  public readonly phoneNumber?: string;
 
   constructor(params: UserParams) {
     this.validateId(params.id);
@@ -56,6 +58,7 @@ export class User {
     this.updatedAt = params.updatedAt;
     this.profilePhotoUrl = params.profilePhotoUrl;
     this.faithProfile = params.faithProfile;
+    this.phoneNumber = params.phoneNumber;
   }
 
   static create(params: Omit<UserParams, 'accountStatus' | 'emailVerified' | 'privacySettings' | 'createdAt' | 'updatedAt'> & { accountStatus?: AccountStatus; emailVerified?: boolean; privacySettings?: PrivacySettings }): User {
@@ -166,6 +169,7 @@ export class User {
       updatedAt: this.updatedAt,
       profilePhotoUrl: this.profilePhotoUrl,
       faithProfile: this.faithProfile,
+      phoneNumber: this.phoneNumber,
     };
   }
 

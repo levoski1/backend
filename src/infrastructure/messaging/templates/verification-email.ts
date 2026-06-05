@@ -1,0 +1,53 @@
+export function getVerificationEmailHtml(link: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify your email</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 0">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+          <tr>
+            <td style="padding:40px 40px 32px;text-align:center">
+              <h1 style="margin:0;font-size:24px;font-weight:700;color:#18181b">Verify your email address</h1>
+              <p style="margin:16px 0 0;font-size:15px;line-height:1.6;color:#52525b">
+                Thanks for creating an account! Please verify your email address to get started.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 32px;text-align:center">
+              <a href="${link}" style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:600;color:#ffffff;background-color:#18181b;border-radius:8px;text-decoration:none">
+                Verify email address
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 32px;text-align:center">
+              <p style="margin:0;font-size:13px;color:#71717a">
+                This link expires in 24 hours. If you didn't create an account, you can ignore this email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 24px;text-align:center">
+              <p style="margin:0;font-size:13px;color:#a1a1aa">
+                Or paste this link in your browser:<br>
+                <span style="font-size:12px;word-break:break-all;color:#71717a">${link}</span>
+              </p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:24px 0 0;font-size:12px;color:#a1a1aa">Shelter — A Digital Sanctuary for Faith and Mental Health</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}

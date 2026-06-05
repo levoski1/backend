@@ -5,6 +5,7 @@ export {
   AuthorizationError,
   NotFoundError,
   ConflictError,
+  TokenExpiredError,
   RateLimitError,
   InternalError,
 } from './AppError.js';

@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
 import { authRateLimiter } from '../middleware/rate-limiter.js';
-import { registerSchema, loginSchema, refreshSchema } from '../validators/auth-validators.js';
-import { register, login, refresh, logout } from '../controllers/auth-controller.js';
+import { registerSchema, loginSchema, refreshSchema, verifyEmailSchema, resendVerificationSchema } from '../validators/auth-validators.js';
+import { register, login, refresh, logout, verifyEmail, resendVerification, verifyEmailFromLink } from '../controllers/auth-controller.js';
 import '../middleware/passport.js';
 
 const router = Router();
@@ -57,6 +57,96 @@ const router = Router();
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/register', authRateLimiter, validate(registerSchema), register);
+
+/**
+ * @openapi
+ * /auth/verify-email:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Verify email address with token
+ *     description: Verifies a user's email address using the token sent in the verification email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VerifyEmailInput'
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Token not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       410:
+ *         description: Token expired or already used
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/verify-email', validate(verifyEmailSchema), verifyEmail);
+router.get('/verify-email', verifyEmailFromLink);
+
+/**
+ * @openapi
+ * /auth/resend-verification:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Resend verification email
+ *     description: Resends the email verification link to the user's email address. Invalidates previous tokens.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ResendVerificationInput'
+ *     responses:
+ *       200:
+ *         description: Verification email sent (if account exists)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: null
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/resend-verification', authRateLimiter, validate(resendVerificationSchema), resendVerification);
 
 /**
  * @openapi

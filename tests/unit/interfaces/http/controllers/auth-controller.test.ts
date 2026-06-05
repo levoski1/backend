@@ -8,6 +8,7 @@ const mockBcryptHash = bcrypt.hash as jest.Mock;
 
 const mockUserRepoMethods: Record<string, jest.Mock | undefined> = {};
 const mockRefreshTokenRepoMethods: Record<string, jest.Mock | undefined> = {};
+const mockVerificationTokenRepoMethods: Record<string, jest.Mock | undefined> = {};
 
 jest.mock('express-rate-limit', () => jest.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()));
 
@@ -27,6 +28,16 @@ jest.mock('@infrastructure/database/repositories/user-repository', () => ({
 
 jest.mock('@infrastructure/database/repositories/refresh-token-repository', () => ({
   RefreshTokenRepository: jest.fn().mockImplementation(() => mockRefreshTokenRepoMethods),
+}));
+
+jest.mock('@infrastructure/database/repositories/email-verification-token-repository', () => ({
+  EmailVerificationTokenRepository: jest.fn().mockImplementation(() => mockVerificationTokenRepoMethods),
+}));
+
+jest.mock('@infrastructure/messaging/email-service', () => ({
+  EmailService: jest.fn().mockImplementation(() => ({
+    sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 const validUser = new User({
@@ -49,6 +60,7 @@ describe('AuthController', () => {
     jest.clearAllMocks();
     mockUserRepoMethods.findByEmail = jest.fn();
     mockUserRepoMethods.create = jest.fn();
+    mockUserRepoMethods.update = jest.fn();
     mockUserRepoMethods.updateLastLogin = jest.fn();
     mockUserRepoMethods.findById = jest.fn();
     mockRefreshTokenRepoMethods.create = jest.fn();
@@ -56,10 +68,14 @@ describe('AuthController', () => {
     mockRefreshTokenRepoMethods.revoke = jest.fn();
     mockRefreshTokenRepoMethods.revokeFamily = jest.fn();
     mockRefreshTokenRepoMethods.revokeAllForUser = jest.fn();
+    mockVerificationTokenRepoMethods.create = jest.fn();
+    mockVerificationTokenRepoMethods.findByToken = jest.fn();
+    mockVerificationTokenRepoMethods.markAsUsed = jest.fn();
+    mockVerificationTokenRepoMethods.invalidateForUser = jest.fn();
   });
 
   describe('POST /api/v1/auth/register', () => {
-    it('should register a new user and return 201 with tokens', async () => {
+    it('should register a new user and return 201 with user (no tokens)', async () => {
       mockBcryptHash.mockResolvedValue('$2b$12$mockedhash');
       mockUserRepoMethods.findByEmail!.mockResolvedValue(null);
       mockUserRepoMethods.create!.mockImplementation(async (user: User) => user);
@@ -70,6 +86,7 @@ describe('AuthController', () => {
           fullName: 'John Doe',
           email: 'john@example.com',
           password: 'password123',
+          phoneNumber: '+1234567890',
         });
 
       expect(response.status).toBe(201);
@@ -77,9 +94,10 @@ describe('AuthController', () => {
       expect(response.body.data.user).toBeDefined();
       expect(response.body.data.user.email).toBe('john@example.com');
       expect(response.body.data.user.fullName).toBe('John Doe');
+      expect(response.body.data.user.phoneNumber).toBe('+1234567890');
       expect(response.body.data.user.id).toBeDefined();
-      expect(response.body.data.accessToken).toBe('mock-jwt-token');
-      expect(response.body.data.refreshToken).toBe('mock-jwt-token');
+      expect(response.body.data.accessToken).toBeUndefined();
+      expect(response.body.data.refreshToken).toBeUndefined();
       expect(response.body.meta.requestId).toBeDefined();
     });
 
@@ -340,6 +358,80 @@ describe('AuthController', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
+    });
+  });
+
+  describe('POST /api/v1/auth/verify-email', () => {
+    it('should verify email with valid token', async () => {
+      const tokenRecord = {
+        id: 'token-id',
+        user_id: validUser.id,
+        token: 'valid-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: null,
+        created_at: new Date(),
+      };
+      mockVerificationTokenRepoMethods.findByToken!.mockResolvedValue(tokenRecord);
+      mockUserRepoMethods.findById!.mockResolvedValue(validUser);
+
+      const response = await request(app)
+        .post('/api/v1/auth/verify-email')
+        .send({ token: 'valid-token' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user.email).toBe('john@example.com');
+    });
+
+    it('should return 400 for missing token', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/verify-email')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for empty token', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/verify-email')
+        .send({ token: '' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('POST /api/v1/auth/resend-verification', () => {
+    it('should return 200', async () => {
+      mockUserRepoMethods.findByEmail!.mockResolvedValue(validUser);
+
+      const response = await request(app)
+        .post('/api/v1/auth/resend-verification')
+        .send({ email: 'john@example.com' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it('should return 400 for missing email', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/resend-verification')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for invalid email', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/resend-verification')
+        .send({ email: 'not-an-email' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
     });
   });
 });

@@ -16,6 +16,13 @@ export const registerSchema = z.object({
     .string()
     .min(8, 'Password must be at least 8 characters')
     .max(128, 'Password must not exceed 128 characters'),
+  phoneNumber: z
+    .string()
+    .trim()
+    .min(7, 'Phone number must be at least 7 characters')
+    .max(20, 'Phone number must not exceed 20 characters')
+    .regex(/^\+?[\d\s\-()]+$/, 'Invalid phone number format')
+    .optional(),
 });
 
 export const loginSchema = z.object({
@@ -33,6 +40,20 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, 'Verification token is required'),
+});
+
+export const resendVerificationSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Invalid email address'),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

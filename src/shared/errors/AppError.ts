@@ -53,6 +53,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class TokenExpiredError extends AppError {
+  constructor(message = 'Token has expired') {
+    super(message, 410, 'TOKEN_EXPIRED');
+  }
+}
+
 export class RateLimitError extends AppError {
   constructor(retryAfter: number) {
     super('Too many requests. Please try again later.', 429, 'RATE_LIMIT_EXCEEDED', {

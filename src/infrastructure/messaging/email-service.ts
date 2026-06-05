@@ -1,0 +1,45 @@
+import { Resend } from 'resend';
+import { env } from '../../config/env.js';
+import { logger } from '../../shared/logging/logger.js';
+import { InternalError } from '../../shared/errors/index.js';
+import { getVerificationEmailHtml } from './templates/verification-email.js';
+
+export class EmailService {
+  private resend: Resend | null = null;
+
+  private getClient(): Resend {
+    if (!this.resend) {
+      if (!env.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY is not configured');
+      }
+      this.resend = new Resend(env.RESEND_API_KEY);
+    }
+    return this.resend;
+  }
+
+  async sendVerificationEmail(to: string, token: string): Promise<void> {
+    const baseUrl = env.RENDER_EXTERNAL_URL || `http://localhost:${env.PORT}`;
+    const link = `${baseUrl}${env.API_PREFIX}/auth/verify-email?token=${token}`;
+
+    if (!env.RESEND_API_KEY) {
+      logger.warn({ to, link }, 'No RESEND_API_KEY configured — skipping verification email');
+      return;
+    }
+
+    const { error } = await this.getClient().emails.send({
+      from: env.EMAIL_FROM,
+      to,
+      subject: 'Verify your email address — Shelter',
+      html: getVerificationEmailHtml(link),
+    });
+
+    if (error) {
+      logger.error({ error, to }, 'Failed to send verification email');
+      throw new InternalError('Failed to send verification email');
+    }
+
+    logger.info({ to }, 'Verification email sent');
+  }
+}
+
+export const emailService = new EmailService();

@@ -3,8 +3,9 @@ import jwt from 'jsonwebtoken';
 import { AuthService } from '@application/auth/auth-service';
 import type { UserRepository } from '@infrastructure/database/repositories/user-repository';
 import type { RefreshTokenRepository } from '@infrastructure/database/repositories/refresh-token-repository';
+import type { EmailVerificationTokenRepository } from '@infrastructure/database/repositories/email-verification-token-repository';
 import { User, Email, PasswordHash, AccountStatus, AuthProvider, PrivacySettings } from '@domain/index';
-import { ConflictError, AuthenticationError } from '@shared/errors';
+import { ConflictError, AuthenticationError, NotFoundError, TokenExpiredError } from '@shared/errors';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
@@ -16,12 +17,19 @@ jest.mock('jsonwebtoken', () => ({
   verify: jest.fn(),
 }));
 
+jest.mock('@infrastructure/messaging/email-service', () => ({
+  EmailService: jest.fn().mockImplementation(() => ({
+    sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 const mockBcryptHash = bcrypt.hash as jest.Mock;
 const mockBcryptCompare = bcrypt.compare as jest.Mock;
 
 const mockUserRepo = {
   findByEmail: jest.fn(),
   create: jest.fn(),
+  update: jest.fn(),
   updateLastLogin: jest.fn(),
   findById: jest.fn(),
 };
@@ -32,6 +40,13 @@ const mockRefreshTokenRepo = {
   revoke: jest.fn(),
   revokeFamily: jest.fn(),
   revokeAllForUser: jest.fn(),
+};
+
+const mockVerificationTokenRepo = {
+  create: jest.fn(),
+  findByToken: jest.fn(),
+  markAsUsed: jest.fn(),
+  invalidateForUser: jest.fn(),
 };
 
 const validUser = new User({
@@ -47,6 +62,19 @@ const validUser = new User({
   updatedAt: new Date('2026-01-01'),
 });
 
+const unverifiedUser = new User({
+  id: '123e4567-e89b-12d3-a456-426614174000',
+  fullName: 'John Doe',
+  email: Email.create('john@example.com'),
+  passwordHash: PasswordHash.create('$2b$12$LJ3m4ys3Lk5x7D8k9n0Ae.1j2k3l4m5n6o7p8q9r0s1t2u3v4w5x6y7z'),
+  accountStatus: AccountStatus.ACTIVE,
+  authProvider: AuthProvider.EMAIL,
+  emailVerified: false,
+  privacySettings: PrivacySettings.defaults(),
+  createdAt: new Date('2026-01-01'),
+  updatedAt: new Date('2026-01-01'),
+});
+
 describe('AuthService', () => {
   let authService: AuthService;
 
@@ -55,11 +83,12 @@ describe('AuthService', () => {
     authService = new AuthService(
       mockUserRepo as unknown as UserRepository,
       mockRefreshTokenRepo as unknown as RefreshTokenRepository,
+      mockVerificationTokenRepo as unknown as EmailVerificationTokenRepository,
     );
   });
 
   describe('register', () => {
-    it('should hash the password, create a new user, and return tokens', async () => {
+    it('should hash the password, create a new user (unverified), store verification token, and send email', async () => {
       mockBcryptHash.mockResolvedValue('$2b$12$mockedhash');
       mockUserRepo.findByEmail.mockResolvedValue(null);
       mockUserRepo.create.mockImplementation(async (user: User) => user);
@@ -68,19 +97,19 @@ describe('AuthService', () => {
         fullName: 'John Doe',
         email: 'john@example.com',
         password: 'password123',
+        phoneNumber: '+1234567890',
       });
 
       expect(result.user).toBeDefined();
-      expect(result.tokens).toBeDefined();
-      expect(result.tokens.accessToken).toBe('mock-jwt-token');
-      expect(result.tokens.refreshToken).toBe('mock-jwt-token');
       expect(result.user.fullName).toBe('John Doe');
       expect(result.user.email.getValue()).toBe('john@example.com');
+      expect(result.user.phoneNumber).toBe('+1234567890');
       expect(result.user.authProvider).toBe(AuthProvider.EMAIL);
-      expect(result.user.emailVerified).toBe(true);
+      expect(result.user.emailVerified).toBe(false);
       expect(mockBcryptHash).toHaveBeenCalledWith('password123', expect.any(Number));
       expect(mockUserRepo.create).toHaveBeenCalledTimes(1);
-      expect(mockRefreshTokenRepo.create).toHaveBeenCalledTimes(1);
+      expect(mockVerificationTokenRepo.create).toHaveBeenCalledTimes(1);
+      expect(mockRefreshTokenRepo.create).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictError when email is already taken', async () => {
@@ -111,6 +140,110 @@ describe('AuthService', () => {
       }
 
       expect(mockUserRepo.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('should verify email with a valid token', async () => {
+      const tokenRecord = {
+        id: 'token-id',
+        user_id: validUser.id,
+        token: 'valid-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: null,
+        created_at: new Date(),
+      };
+      mockVerificationTokenRepo.findByToken.mockResolvedValue(tokenRecord);
+      mockUserRepo.findById.mockResolvedValue(unverifiedUser);
+      mockUserRepo.update.mockImplementation(async (user: User) => user);
+
+      const result = await authService.verifyEmail('valid-token');
+
+      expect(result.user.emailVerified).toBe(true);
+      expect(mockUserRepo.update).toHaveBeenCalledTimes(1);
+      expect(mockVerificationTokenRepo.markAsUsed).toHaveBeenCalledWith('token-id');
+    });
+
+    it('should return user if already verified', async () => {
+      const tokenRecord = {
+        id: 'token-id',
+        user_id: validUser.id,
+        token: 'valid-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: null,
+        created_at: new Date(),
+      };
+      mockVerificationTokenRepo.findByToken.mockResolvedValue(tokenRecord);
+      mockUserRepo.findById.mockResolvedValue(validUser);
+
+      const result = await authService.verifyEmail('valid-token');
+
+      expect(result.user.emailVerified).toBe(true);
+      expect(mockUserRepo.update).not.toHaveBeenCalled();
+      expect(mockVerificationTokenRepo.markAsUsed).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundError for invalid token', async () => {
+      mockVerificationTokenRepo.findByToken.mockResolvedValue(null);
+
+      await expect(authService.verifyEmail('invalid-token')).rejects.toThrow(NotFoundError);
+    });
+
+    it('should throw TokenExpiredError for used token', async () => {
+      const tokenRecord = {
+        id: 'token-id',
+        user_id: validUser.id,
+        token: 'used-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: new Date(),
+        created_at: new Date(),
+      };
+      mockVerificationTokenRepo.findByToken.mockResolvedValue(tokenRecord);
+
+      await expect(authService.verifyEmail('used-token')).rejects.toThrow(TokenExpiredError);
+    });
+
+    it('should throw TokenExpiredError for expired token', async () => {
+      const tokenRecord = {
+        id: 'token-id',
+        user_id: validUser.id,
+        token: 'expired-token',
+        expires_at: new Date(Date.now() - 3600000),
+        used_at: null,
+        created_at: new Date(),
+      };
+      mockVerificationTokenRepo.findByToken.mockResolvedValue(tokenRecord);
+
+      await expect(authService.verifyEmail('expired-token')).rejects.toThrow(TokenExpiredError);
+    });
+  });
+
+  describe('resendVerification', () => {
+    it('should invalidate old tokens and send new verification email for unverified user', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(unverifiedUser);
+
+      await authService.resendVerification('john@example.com');
+
+      expect(mockVerificationTokenRepo.invalidateForUser).toHaveBeenCalledWith(unverifiedUser.id);
+      expect(mockVerificationTokenRepo.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('should do nothing if user is already verified', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(validUser);
+
+      await authService.resendVerification('john@example.com');
+
+      expect(mockVerificationTokenRepo.invalidateForUser).not.toHaveBeenCalled();
+      expect(mockVerificationTokenRepo.create).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing for non-existent email', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+
+      await authService.resendVerification('unknown@example.com');
+
+      expect(mockVerificationTokenRepo.invalidateForUser).not.toHaveBeenCalled();
+      expect(mockVerificationTokenRepo.create).not.toHaveBeenCalled();
     });
   });
 

@@ -22,6 +22,7 @@ interface UserRow {
   email_verified: boolean;
   profile_photo_url: string | null;
   privacy_settings: Record<string, unknown>;
+  phone_number: string | null;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
@@ -45,6 +46,7 @@ function rowToUser(row: UserRow): User {
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     profilePhotoUrl: row.profile_photo_url ? PhotoUrl.create(row.profile_photo_url) : undefined,
+    phoneNumber: row.phone_number ?? undefined,
   });
 }
 
@@ -57,6 +59,7 @@ function userToRow(user: User): Omit<UserRow, 'id' | 'created_at' | 'updated_at'
     account_status: user.accountStatus,
     email_verified: user.emailVerified,
     profile_photo_url: user.profilePhotoUrl?.getValue() ?? null,
+    phone_number: user.phoneNumber ?? null,
     privacy_settings: {
       profileVisibility: user.privacySettings.profileVisibility,
       showFaithInfo: user.privacySettings.showFaithInfo,
@@ -107,6 +110,22 @@ export class UserRepository {
     }
 
     return rowToUser(inserted);
+  }
+
+  async update(user: User): Promise<User> {
+    const [updated] = await this.db<UserRow>('users')
+      .where({ id: user.id })
+      .update({
+        ...userToRow(user),
+        updated_at: new Date().toISOString(),
+      })
+      .returning('*');
+
+    if (!updated) {
+      throw new InternalError('Failed to update user');
+    }
+
+    return rowToUser(updated);
   }
 
   async updateLastLogin(id: string): Promise<void> {

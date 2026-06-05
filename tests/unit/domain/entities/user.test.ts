@@ -55,6 +55,18 @@ describe('User Entity', () => {
       expect(user.faithProfile?.denomination).toBe('Catholic');
     });
 
+    it('should create a user with optional phoneNumber', () => {
+      const params = makeValidUserParams({ phoneNumber: '+1234567890' });
+      const user = new User(params);
+      expect(user.phoneNumber).toBe('+1234567890');
+    });
+
+    it('should default phoneNumber to undefined when not provided', () => {
+      const params = makeValidUserParams();
+      const user = new User(params);
+      expect(user.phoneNumber).toBeUndefined();
+    });
+
     it('should reject invalid UUID', () => {
       const params = makeValidUserParams({ id: 'not-a-uuid' });
       expect(() => new User(params)).toThrow('User ID must be a valid UUID');

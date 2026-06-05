@@ -51,6 +51,10 @@ const envSchema = z.object({
   S3_MEDIA_BUCKET: z.string().default('shelter-media-development'),
   S3_SIGNED_URL_EXPIRY: z.coerce.number().default(3600),
 
+  // ─── Email ───────────────────────────────────────────
+  RESEND_API_KEY: z.string().default(''),
+  EMAIL_FROM: z.string().default('noreply@shelter.app'),
+
   // ─── Moderation ──────────────────────────────────────
   CONTENT_MODERATION_ENABLED: z
     .string()

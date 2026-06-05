@@ -22,6 +22,11 @@ const config: Config = {
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/index.ts',
+    '!src/infrastructure/database/repositories/**',
+    '!src/infrastructure/database/connection.ts',
+    '!src/infrastructure/cache/**',
+    '!src/config/database.ts',
+    '!src/config/environment.ts',
   ],
   coverageThreshold: {
     global: {

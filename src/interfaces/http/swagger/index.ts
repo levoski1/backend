@@ -66,6 +66,7 @@ const swaggerDefinition = {
           authProvider: { type: 'string', enum: ['local', 'google', 'apple'] },
           accountStatus: { type: 'string', enum: ['active', 'suspended', 'deactivated'] },
           emailVerified: { type: 'boolean' },
+          phoneNumber: { type: 'string', nullable: true, example: '+1234567890' },
         },
       },
       RegisterInput: {
@@ -73,15 +74,16 @@ const swaggerDefinition = {
         required: ['fullName', 'email', 'password'],
         properties: {
           fullName: { type: 'string', minLength: 2, maxLength: 50, example: 'Jane Doe' },
-          email: { type: 'string', format: 'email', maxLength: 255, example: 'jane@example.com' },
+          email: { type: 'string', format: 'email', maxLength: 255, example: 'shelterfaithapps@gmail.com' },
           password: { type: 'string', minLength: 8, maxLength: 128, example: 'securePass123' },
+          phoneNumber: { type: 'string', nullable: true, example: '+1234567890', description: 'Optional phone number' },
         },
       },
       LoginInput: {
         type: 'object',
         required: ['email', 'password'],
         properties: {
-          email: { type: 'string', format: 'email', example: 'jane@example.com' },
+          email: { type: 'string', format: 'email', example: 'shelterfaithapps@gmail.com' },
           password: { type: 'string', example: 'securePass123' },
         },
       },
@@ -96,6 +98,20 @@ const swaggerDefinition = {
         type: 'object',
         properties: {
           refreshToken: { type: 'string', description: 'JWT refresh token to invalidate' },
+        },
+      },
+      VerifyEmailInput: {
+        type: 'object',
+        required: ['token'],
+        properties: {
+          token: { type: 'string', description: 'Email verification token from email link' },
+        },
+      },
+      ResendVerificationInput: {
+        type: 'object',
+        required: ['email'],
+        properties: {
+          email: { type: 'string', format: 'email', example: 'shelterfaithapps@gmail.com', description: 'Email address to resend verification to' },
         },
       },
     },

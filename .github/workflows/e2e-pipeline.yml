@@ -56,9 +56,9 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Check for syntax errors
+      - name: Type check
         working-directory: backend
-        run: node --check src/index.js
+        run: npx tsc --noEmit
 
       - name: Run npm audit (high severity)
         working-directory: backend

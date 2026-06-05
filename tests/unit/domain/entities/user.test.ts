@@ -232,6 +232,46 @@ describe('User Entity', () => {
     });
   });
 
+  describe('withPasswordHash', () => {
+    it('should update the password hash', () => {
+      const user = new User(makeValidUserParams());
+      const newHash = PasswordHash.create('$2b$12$newhashvalue1234567890123456789012345678901234567890');
+      const updated = user.withPasswordHash(newHash);
+      expect(updated.passwordHash.getValue()).toBe(newHash.getValue());
+    });
+
+    it('should not mutate the original user', () => {
+      const user = new User(makeValidUserParams());
+      const originalHash = user.passwordHash.getValue();
+      const newHash = PasswordHash.create('$2b$12$newhashvalue1234567890123456789012345678901234567890');
+      user.withPasswordHash(newHash);
+      expect(user.passwordHash.getValue()).toBe(originalHash);
+    });
+
+    it('should return a new instance', () => {
+      const user = new User(makeValidUserParams());
+      const newHash = PasswordHash.create('$2b$12$newhashvalue1234567890123456789012345678901234567890');
+      const updated = user.withPasswordHash(newHash);
+      expect(updated).not.toBe(user);
+    });
+
+    it('should update the updatedAt timestamp', () => {
+      const user = new User(makeValidUserParams());
+      const newHash = PasswordHash.create('$2b$12$newhashvalue1234567890123456789012345678901234567890');
+      const updated = user.withPasswordHash(newHash);
+      expect(updated.updatedAt.getTime()).toBeGreaterThan(user.updatedAt.getTime());
+    });
+
+    it('should preserve other fields', () => {
+      const user = new User(makeValidUserParams());
+      const newHash = PasswordHash.create('$2b$12$newhashvalue1234567890123456789012345678901234567890');
+      const updated = user.withPasswordHash(newHash);
+      expect(updated.id).toBe(user.id);
+      expect(updated.fullName).toBe(user.fullName);
+      expect(updated.email.getValue()).toBe(user.email.getValue());
+    });
+  });
+
   describe('suspend', () => {
     it('should set account status to suspended', () => {
       const user = new User(makeValidUserParams({ accountStatus: AccountStatus.ACTIVE }));

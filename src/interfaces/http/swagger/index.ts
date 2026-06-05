@@ -114,6 +114,21 @@ const swaggerDefinition = {
           email: { type: 'string', format: 'email', example: 'shelterfaithapps@gmail.com', description: 'Email address to resend verification to' },
         },
       },
+      ForgotPasswordInput: {
+        type: 'object',
+        required: ['email'],
+        properties: {
+          email: { type: 'string', format: 'email', example: 'shelterfaithapps@gmail.com', description: 'Email address for password reset' },
+        },
+      },
+      ResetPasswordInput: {
+        type: 'object',
+        required: ['token', 'password'],
+        properties: {
+          token: { type: 'string', description: 'Password reset token from email link' },
+          password: { type: 'string', minLength: 8, maxLength: 128, example: 'newSecurePass123', description: 'New password (min 8 characters)' },
+        },
+      },
     },
   },
 };

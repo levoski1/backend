@@ -6,9 +6,32 @@ import { User, Email, PasswordHash, AccountStatus, AuthProvider, PrivacySettings
 const mockBcryptCompare = bcrypt.compare as jest.Mock;
 const mockBcryptHash = bcrypt.hash as jest.Mock;
 
-const mockUserRepoMethods: Record<string, jest.Mock | undefined> = {};
-const mockRefreshTokenRepoMethods: Record<string, jest.Mock | undefined> = {};
-const mockVerificationTokenRepoMethods: Record<string, jest.Mock | undefined> = {};
+const mockUserRepoMethods: Record<string, jest.Mock | undefined> = {
+  findByEmail: jest.fn(),
+  findById: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  updateLastLogin: jest.fn(),
+};
+const mockRefreshTokenRepoMethods: Record<string, jest.Mock | undefined> = {
+  create: jest.fn(),
+  findByTokenHash: jest.fn(),
+  revoke: jest.fn(),
+  revokeFamily: jest.fn(),
+  revokeAllForUser: jest.fn(),
+};
+const mockVerificationTokenRepoMethods: Record<string, jest.Mock | undefined> = {
+  create: jest.fn(),
+  findByToken: jest.fn(),
+  markAsUsed: jest.fn(),
+  invalidateForUser: jest.fn(),
+};
+const mockPasswordResetTokenRepoMethods: Record<string, jest.Mock | undefined> = {
+  create: jest.fn(),
+  findByTokenHash: jest.fn(),
+  markAsUsed: jest.fn(),
+  invalidateForUser: jest.fn(),
+};
 
 jest.mock('express-rate-limit', () => jest.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()));
 
@@ -34,9 +57,14 @@ jest.mock('@infrastructure/database/repositories/email-verification-token-reposi
   EmailVerificationTokenRepository: jest.fn().mockImplementation(() => mockVerificationTokenRepoMethods),
 }));
 
+jest.mock('@infrastructure/database/repositories/password-reset-token-repository', () => ({
+  PasswordResetTokenRepository: jest.fn().mockImplementation(() => mockPasswordResetTokenRepoMethods),
+}));
+
 jest.mock('@infrastructure/messaging/email-service', () => ({
   EmailService: jest.fn().mockImplementation(() => ({
     sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+    sendResetPasswordEmail: jest.fn().mockResolvedValue(undefined),
   })),
 }));
 
@@ -474,6 +502,112 @@ describe('AuthController', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('POST /api/v1/auth/forgot-password', () => {
+    it('should return 200', async () => {
+      mockUserRepoMethods.findByEmail!.mockResolvedValue(validUser);
+
+      const response = await request(app)
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'john@example.com' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it('should return 400 for missing email', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/forgot-password')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for invalid email', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'not-an-email' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('POST /api/v1/auth/reset-password', () => {
+    it('should return 200 with valid token and password', async () => {
+      const tokenRecord = {
+        id: 'token-id',
+        user_id: validUser.id,
+        token_hash: 'hashed-token',
+        expires_at: new Date(Date.now() + 3600000),
+        used_at: null,
+        created_at: new Date(),
+      };
+      mockPasswordResetTokenRepoMethods.findByTokenHash!.mockResolvedValue(tokenRecord);
+      mockUserRepoMethods.findById!.mockResolvedValue(validUser);
+      mockBcryptHash.mockResolvedValue('$2b$12$newhashedpassword');
+
+      const response = await request(app)
+        .post('/api/v1/auth/reset-password')
+        .send({ token: 'valid-token', password: 'newPassword123' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it('should return 400 for missing token', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/reset-password')
+        .send({ password: 'newPassword123' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for missing password', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/reset-password')
+        .send({ token: 'some-token' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for short password', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/reset-password')
+        .send({ token: 'some-token', password: 'short' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('GET /api/v1/auth/reset-password', () => {
+    it('should return 400 HTML when token is missing', async () => {
+      const response = await request(app)
+        .get('/api/v1/auth/reset-password');
+
+      expect(response.status).toBe(400);
+      expect(response.text).toContain('Invalid reset link');
+      expect(response.headers['content-type']).toMatch(/html/);
+    });
+
+    it('should return 200 HTML with form when token is present', async () => {
+      const response = await request(app)
+        .get('/api/v1/auth/reset-password')
+        .query({ token: 'valid-token' });
+
+      expect(response.status).toBe(200);
+      expect(response.text).toContain('Reset your password');
+      expect(response.text).toContain('valid-token');
     });
   });
 });

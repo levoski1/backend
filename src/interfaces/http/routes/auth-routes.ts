@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
 import { authRateLimiter } from '../middleware/rate-limiter.js';
-import { registerSchema, loginSchema, refreshSchema, verifyEmailSchema, resendVerificationSchema } from '../validators/auth-validators.js';
-import { register, login, refresh, logout, verifyEmail, resendVerification, verifyEmailFromLink } from '../controllers/auth-controller.js';
+import { registerSchema, loginSchema, refreshSchema, verifyEmailSchema, resendVerificationSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth-validators.js';
+import { register, login, refresh, logout, verifyEmail, resendVerification, verifyEmailFromLink, forgotPassword, resetPassword, resetPasswordFromLink } from '../controllers/auth-controller.js';
 import '../middleware/passport.js';
 
 const router = Router();
@@ -267,5 +267,92 @@ router.post('/refresh', authRateLimiter, validate(refreshSchema), refresh);
  *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
  */
 router.post('/logout', authRateLimiter, logout);
+
+/**
+ * @openapi
+ * /auth/forgot-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Request password reset email
+ *     description: Sends a password reset link to the user's email if an account exists
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ForgotPasswordInput'
+ *     responses:
+ *       200:
+ *         description: Reset email sent (or no-op if email doesn't exist)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: null
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       429:
+ *         description: Too many requests
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/forgot-password', authRateLimiter, validate(forgotPasswordSchema), forgotPassword);
+
+/**
+ * @openapi
+ * /auth/reset-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Reset password with token
+ *     description: Validates the reset token and sets a new password. Invalidates all existing sessions.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ResetPasswordInput'
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: null
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       400:
+ *         description: Validation error or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Token not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       410:
+ *         description: Token expired or already used
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/reset-password', authRateLimiter, validate(resetPasswordSchema), resetPassword);
+router.get('/reset-password', resetPasswordFromLink);
 
 export default router;

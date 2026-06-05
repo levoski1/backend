@@ -132,7 +132,7 @@
             "type": "string",
             "format": "email",
             "maxLength": 255,
-            "example": "jane@example.com"
+            "example": "shelterfaithapps@gmail.com"
           },
           "password": {
             "type": "string",
@@ -158,7 +158,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "example": "jane@example.com"
+            "example": "shelterfaithapps@gmail.com"
           },
           "password": {
             "type": "string",
@@ -189,7 +189,9 @@
       },
       "VerifyEmailInput": {
         "type": "object",
-        "required": ["token"],
+        "required": [
+          "token"
+        ],
         "properties": {
           "token": {
             "type": "string",
@@ -199,13 +201,49 @@
       },
       "ResendVerificationInput": {
         "type": "object",
-        "required": ["email"],
+        "required": [
+          "email"
+        ],
         "properties": {
           "email": {
             "type": "string",
             "format": "email",
-            "example": "jane@example.com",
+            "example": "shelterfaithapps@gmail.com",
             "description": "Email address to resend verification to"
+          }
+        }
+      },
+      "ForgotPasswordInput": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "shelterfaithapps@gmail.com",
+            "description": "Email address for password reset"
+          }
+        }
+      },
+      "ResetPasswordInput": {
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Password reset token from email link"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128,
+            "example": "newSecurePass123",
+            "description": "New password (min 8 characters)"
           }
         }
       }
@@ -218,7 +256,7 @@
           "Authentication"
         ],
         "summary": "Register a new user account",
-                "description": "Creates a new user account with local (email/password) authentication. Verification email is sent automatically.",
+        "description": "Creates a new user account with local (email/password) authentication",
         "requestBody": {
           "required": true,
           "content": {
@@ -231,7 +269,7 @@
         },
         "responses": {
           "201": {
-            "description": "Account created successfully — verification email sent",
+            "description": "Account created successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -246,10 +284,18 @@
                       "properties": {
                         "user": {
                           "$ref": "#/components/schemas/User"
+                        },
+                        "accessToken": {
+                          "$ref": "#/components/schemas/AuthTokens/properties/accessToken"
+                        },
+                        "refreshToken": {
+                          "$ref": "#/components/schemas/AuthTokens/properties/refreshToken"
                         }
                       },
                       "required": [
-                        "user"
+                        "user",
+                        "accessToken",
+                        "refreshToken"
                       ]
                     },
                     "meta": {
@@ -272,6 +318,137 @@
           },
           "409": {
             "description": "Email already in use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify-email": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Verify email address with token",
+        "description": "Verifies a user's email address using the token sent in the verification email",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ErrorResponse/properties/meta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Token not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Token expired or already used",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/resend-verification": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Resend verification email",
+        "description": "Resends the email verification link to the user's email address. Invalidates previous tokens.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification email sent (if account exists)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": null
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ErrorResponse/properties/meta"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
             "content": {
               "application/json": {
                 "schema": {
@@ -463,26 +640,26 @@
         }
       }
     },
-    "/auth/verify-email": {
+    "/auth/forgot-password": {
       "post": {
         "tags": [
           "Authentication"
         ],
-        "summary": "Verify email address with token",
-        "description": "Verifies a user's email address using the token sent in the verification email",
+        "summary": "Request password reset email",
+        "description": "Sends a password reset link to the user's email if an account exists",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VerifyEmailInput"
+                "$ref": "#/components/schemas/ForgotPasswordInput"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Email verified successfully",
+            "description": "Reset email sent (or no-op if email doesn't exist)",
             "content": {
               "application/json": {
                 "schema": {
@@ -493,12 +670,7 @@
                       "example": true
                     },
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "user": {
-                          "$ref": "#/components/schemas/User"
-                        }
-                      }
+                      "type": null
                     },
                     "meta": {
                       "$ref": "#/components/schemas/ErrorResponse/properties/meta"
@@ -508,28 +680,8 @@
               }
             }
           },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Token not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "410": {
-            "description": "Token expired or already used",
+          "429": {
+            "description": "Too many requests",
             "content": {
               "application/json": {
                 "schema": {
@@ -541,26 +693,26 @@
         }
       }
     },
-    "/auth/resend-verification": {
+    "/auth/reset-password": {
       "post": {
         "tags": [
           "Authentication"
         ],
-        "summary": "Resend verification email",
-        "description": "Resends the email verification link to the user's email address. Invalidates previous tokens.",
+        "summary": "Reset password with token",
+        "description": "Validates the reset token and sets a new password. Invalidates all existing sessions.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ResendVerificationInput"
+                "$ref": "#/components/schemas/ResetPasswordInput"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Verification email sent (if account exists)",
+            "description": "Password reset successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -582,7 +734,27 @@
             }
           },
           "400": {
-            "description": "Validation error",
+            "description": "Validation error or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Token not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Token expired or already used",
             "content": {
               "application/json": {
                 "schema": {

@@ -45,6 +45,15 @@ jobs:
 
       - name: Run unit tests
         run: npm run test:unit
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: shelter_test
+          DB_USER: shelter
+          DB_PASSWORD: shelter_test
+          JWT_ACCESS_SECRET: ci-access-secret-thirty-two-chars-min
+          JWT_REFRESH_SECRET: ci-refresh-secret-thirty-two-chars-min
 
       - name: Run tests with coverage
         run: npm run test:cov

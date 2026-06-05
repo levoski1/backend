@@ -5,7 +5,7 @@ dotenv.config();
 
 const envSchema = z.object({
   // ─── Server ──────────────────────────────────────────
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z.enum(['development', 'production', 'test', 'e2e']).default('development'),
   PORT: z.coerce.number().positive().max(65535).default(4000),
   API_PREFIX: z.string().default('/api/v1'),
   HOST: z.string().default('0.0.0.0'),

@@ -95,6 +95,14 @@ export class User {
     });
   }
 
+  withPasswordHash(passwordHash: PasswordHash): User {
+    return new User({
+      ...this.toParams(),
+      passwordHash,
+      updatedAt: new Date(),
+    });
+  }
+
   suspend(): User {
     if (this.accountStatus === AccountStatus.BANNED) {
       throw new ValidationError('Cannot suspend a banned user');

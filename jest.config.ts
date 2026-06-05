@@ -26,7 +26,7 @@ const config: Config = {
     '!src/infrastructure/database/connection.ts',
     '!src/infrastructure/cache/**',
     '!src/config/database.ts',
-    '!src/config/environment.ts',
+    '!src/config/env.ts',
   ],
   coverageThreshold: {
     global: {

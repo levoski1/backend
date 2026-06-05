@@ -4,6 +4,7 @@ import { User, Email, PasswordHash, AuthProvider } from '../../domain/index.js';
 import { UserRepository } from '../../infrastructure/database/repositories/user-repository.js';
 import { RefreshTokenRepository } from '../../infrastructure/database/repositories/refresh-token-repository.js';
 import { EmailVerificationTokenRepository } from '../../infrastructure/database/repositories/email-verification-token-repository.js';
+import { PasswordResetTokenRepository } from '../../infrastructure/database/repositories/password-reset-token-repository.js';
 import { EmailService } from '../../infrastructure/messaging/email-service.js';
 import { JwtService } from './jwt-service.js';
 import { env } from '../../config/env.js';
@@ -38,6 +39,7 @@ export class AuthService {
     private readonly userRepo: UserRepository = new UserRepository(),
     private readonly refreshTokenRepo: RefreshTokenRepository = new RefreshTokenRepository(),
     private readonly verificationTokenRepo: EmailVerificationTokenRepository = new EmailVerificationTokenRepository(),
+    private readonly passwordResetTokenRepo: PasswordResetTokenRepository = new PasswordResetTokenRepository(),
   ) {
     this.jwtService = new JwtService();
     this.emailService = new EmailService();
@@ -185,6 +187,59 @@ export class AuthService {
     });
 
     await this.emailService.sendVerificationEmail(user.email.getValue(), verificationToken);
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.userRepo.findByEmail(email);
+    if (!user) {
+      return;
+    }
+
+    if (user.authProvider !== AuthProvider.EMAIL) {
+      return;
+    }
+
+    await this.passwordResetTokenRepo.invalidateForUser(user.id);
+
+    const resetToken = randomBytes(32).toString('hex');
+    const tokenHash = this.jwtService.hashToken(resetToken);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await this.passwordResetTokenRepo.create({
+      id: randomUUID(),
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+    });
+
+    await this.emailService.sendResetPasswordEmail(user.email.getValue(), resetToken);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const tokenHash = this.jwtService.hashToken(token);
+    const storedToken = await this.passwordResetTokenRepo.findByTokenHash(tokenHash);
+    if (!storedToken) {
+      throw new NotFoundError('Password reset token');
+    }
+
+    if (storedToken.used_at) {
+      throw new TokenExpiredError('Password reset token has already been used');
+    }
+
+    if (new Date(storedToken.expires_at) < new Date()) {
+      throw new TokenExpiredError('Password reset token has expired');
+    }
+
+    const user = await this.userRepo.findById(storedToken.user_id);
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, env.BCRYPT_SALT_ROUNDS);
+    const updated = user.withPasswordHash(PasswordHash.create(hashedPassword));
+    await this.userRepo.update(updated);
+    await this.passwordResetTokenRepo.markAsUsed(storedToken.id);
+
+    await this.refreshTokenRepo.revokeAllForUser(user.id);
   }
 
   async logout(refreshToken: string): Promise<void> {

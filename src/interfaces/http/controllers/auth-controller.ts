@@ -3,6 +3,7 @@ import passport from 'passport';
 import type { User } from '../../../domain/index.js';
 import { AuthService } from '../../../application/auth/auth-service.js';
 import { asyncHandler } from '../../../shared/utils/index.js';
+import { env } from '../../../config/env.js';
 import { AuthenticationError } from '../../../shared/errors/index.js';
 
 const authService = new AuthService();
@@ -16,6 +17,7 @@ function sanitizeUser(user: User) {
     accountStatus: user.accountStatus,
     emailVerified: user.emailVerified,
     phoneNumber: user.phoneNumber,
+    providerId: user.providerId,
   };
 }
 
@@ -261,6 +263,111 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 });
+
+function renderOAuthSuccess(res: Response, tokens: { accessToken: string; refreshToken: string }, user: User) {
+  res.status(200).send(`
+    <html><body style="font-family:sans-serif;text-align:center;padding:60px 20px">
+      <h1 style="font-size:24px;color:#18181b">Authentication successful ✓</h1>
+      <p style="color:#52525b;margin-bottom:24px">Signed in as ${user.fullName} (${user.email.getValue()})</p>
+      <div style="background:#f4f4f5;border-radius:8px;padding:16px;text-align:left;max-width:480px;margin:0 auto;word-break:break-all">
+        <p><strong>Access Token:</strong></p>
+        <p style="font-size:12px;color:#18181b">${tokens.accessToken}</p>
+        <p style="margin-top:12px"><strong>Refresh Token:</strong></p>
+        <p style="font-size:12px;color:#18181b">${tokens.refreshToken}</p>
+      </div>
+      <p style="margin-top:24px;font-size:14px;color:#52525b">You can close this tab and return to the app.</p>
+      <script>
+        const url = new URL('${env.MOBILE_DEEP_LINK}');
+        url.searchParams.set('accessToken', '${tokens.accessToken}');
+        url.searchParams.set('refreshToken', '${tokens.refreshToken}');
+        url.searchParams.set('userId', '${user.id}');
+        url.searchParams.set('email', '${user.email.getValue()}');
+        url.searchParams.set('fullName', '${user.fullName}');
+        window.location.replace(url.toString());
+      </script>
+    </body></html>
+  `);
+}
+
+function renderOAuthError(res: Response, message: string) {
+  res.status(401).send(`
+    <html><body style="font-family:sans-serif;text-align:center;padding:60px 20px">
+      <h1 style="font-size:24px;color:#ef4444">Authentication failed</h1>
+      <p style="color:#52525b">${message}</p>
+      <p style="margin-top:24px;font-size:14px;color:#52525b">Please try signing in again.</p>
+      <script>
+        const url = new URL('${env.MOBILE_DEEP_LINK}');
+        url.searchParams.set('error', '${message}');
+        window.location.replace(url.toString());
+      </script>
+    </body></html>
+  `);
+}
+
+function handleOAuthCallback(strategy: string, req: Request, res: Response, next: NextFunction) {
+  passport.authenticate(strategy, { session: false }, async (err: Error | null, user: Express.User | false, info: { message?: string } | undefined) => {
+    if (err) {
+      return next(err);
+    }
+
+    if (!user) {
+      const message = info?.message ?? 'OAuth authentication failed';
+      if (env.NODE_ENV === 'development') {
+        return renderOAuthError(res, message);
+      }
+      const url = new URL(env.MOBILE_DEEP_LINK);
+      url.searchParams.set('error', message);
+      return res.redirect(url.toString());
+    }
+
+    try {
+      const passportUser = user as User;
+      const tokens = await authService.generateTokenPair(passportUser);
+
+      if (env.NODE_ENV === 'development') {
+        return renderOAuthSuccess(res, tokens, passportUser);
+      }
+
+      const url = new URL(env.MOBILE_DEEP_LINK);
+      url.searchParams.set('accessToken', tokens.accessToken);
+      url.searchParams.set('refreshToken', tokens.refreshToken);
+      url.searchParams.set('userId', passportUser.id);
+      url.searchParams.set('email', passportUser.email.getValue());
+      url.searchParams.set('fullName', passportUser.fullName);
+      res.redirect(url.toString());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'OAuth authentication failed';
+      if (env.NODE_ENV === 'development') {
+        return renderOAuthError(res, message);
+      }
+      const url = new URL(env.MOBILE_DEEP_LINK);
+      url.searchParams.set('error', message);
+      res.redirect(url.toString());
+    }
+  })(req, res, next);
+}
+
+export const googleAuth = (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+  })(req, res, next);
+};
+
+export const googleCallback = (req: Request, res: Response, next: NextFunction) => {
+  handleOAuthCallback('google', req, res, next);
+};
+
+export const appleAuth = (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate('apple', {
+    scope: ['name', 'email'],
+    session: false,
+  })(req, res, next);
+};
+
+export const appleCallback = (req: Request, res: Response, next: NextFunction) => {
+  handleOAuthCallback('apple', req, res, next);
+};
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
   const { refreshToken } = req.body;

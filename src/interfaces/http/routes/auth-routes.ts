@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
 import { authRateLimiter } from '../middleware/rate-limiter.js';
 import { registerSchema, loginSchema, refreshSchema, verifyEmailSchema, resendVerificationSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth-validators.js';
-import { register, login, refresh, logout, verifyEmail, resendVerification, verifyEmailFromLink, forgotPassword, resetPassword, resetPasswordFromLink } from '../controllers/auth-controller.js';
+import { register, login, refresh, logout, verifyEmail, resendVerification, verifyEmailFromLink, forgotPassword, resetPassword, resetPasswordFromLink, googleAuth, googleCallback, appleAuth, appleCallback } from '../controllers/auth-controller.js';
 import '../middleware/passport.js';
 
 const router = Router();
@@ -354,5 +354,69 @@ router.post('/forgot-password', authRateLimiter, validate(forgotPasswordSchema),
  */
 router.post('/reset-password', authRateLimiter, validate(resetPasswordSchema), resetPassword);
 router.get('/reset-password', resetPasswordFromLink);
+
+/**
+ * @openapi
+ * /auth/google:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Initiate Google OAuth sign-in
+ *     description: Redirects the user to Google's OAuth consent screen. After successful authentication, the user is redirected to the configured MOBILE_DEEP_LINK with accessToken, refreshToken, userId, email, and fullName as query parameters.
+ *     responses:
+ *       302:
+ *         description: Redirect to Google OAuth consent screen
+ *       401:
+ *         description: OAuth configuration missing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get('/google', googleAuth);
+
+/**
+ * @openapi
+ * /auth/google/callback:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Google OAuth callback
+ *     description: Handles the OAuth callback from Google. On success, redirects to the configured MOBILE_DEEP_LINK with accessToken, refreshToken, userId, email, and fullName as query parameters. On failure, redirects with an error parameter.
+ *     responses:
+ *       302:
+ *         description: Redirect to mobile deep link with tokens or error
+ */
+router.get('/google/callback', googleCallback);
+
+/**
+ * @openapi
+ * /auth/apple:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Initiate Apple OAuth sign-in
+ *     description: Redirects the user to Apple's OAuth consent screen. After successful authentication, the user is redirected to the configured MOBILE_DEEP_LINK with accessToken, refreshToken, userId, email, and fullName as query parameters.
+ *     responses:
+ *       302:
+ *         description: Redirect to Apple OAuth consent screen
+ *       401:
+ *         description: OAuth configuration missing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get('/apple', appleAuth);
+
+/**
+ * @openapi
+ * /auth/apple/callback:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Apple OAuth callback
+ *     description: Handles the OAuth callback from Apple. On success, redirects to the configured MOBILE_DEEP_LINK with accessToken, refreshToken, userId, email, and fullName as query parameters. On failure, redirects with an error parameter.
+ *     responses:
+ *       302:
+ *         description: Redirect to mobile deep link with tokens or error
+ */
+router.get('/apple/callback', appleCallback);
 
 export default router;

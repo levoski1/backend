@@ -10,6 +10,30 @@ import { JwtService } from './jwt-service.js';
 import { env } from '../../config/env.js';
 import { ConflictError, AuthenticationError, NotFoundError, TokenExpiredError } from '../../shared/errors/index.js';
 
+interface OAuthProfile {
+  id: string;
+  displayName?: string;
+  name?: {
+    givenName?: string;
+    familyName?: string;
+  };
+  emails?: Array<{ value: string }>;
+  photos?: Array<{ value: string }>;
+}
+
+const OAUTH_PLACEHOLDER_PASSWORD = '$2b$12$placeholder.oauth.user.no.password.set';
+
+function extractName(profile: OAuthProfile): string {
+  if (profile.displayName?.trim()) {
+    return profile.displayName.trim();
+  }
+  if (profile.name?.givenName || profile.name?.familyName) {
+    return [profile.name.givenName, profile.name.familyName].filter(Boolean).join(' ').trim();
+  }
+  const emailName = profile.emails?.[0]?.value?.split('@')[0] ?? 'User';
+  return emailName;
+}
+
 export interface RegisterParams {
   fullName: string;
   email: string;
@@ -240,6 +264,60 @@ export class AuthService {
     await this.passwordResetTokenRepo.markAsUsed(storedToken.id);
 
     await this.refreshTokenRepo.revokeAllForUser(user.id);
+  }
+
+  async generateTokenPair(user: User): Promise<AuthTokens> {
+    return this.generateTokens(user);
+  }
+
+  async handleOAuthUser(
+    provider: AuthProvider,
+    profile: OAuthProfile,
+  ): Promise<AuthResult> {
+    const email = profile.emails?.[0]?.value;
+    if (!email) {
+      throw new AuthenticationError('OAuth provider did not return an email address');
+    }
+
+    let user = await this.userRepo.findByProviderId(profile.id);
+
+    if (user) {
+      await this.userRepo.updateLastLogin(user.id);
+      const tokens = await this.generateTokens(user);
+      return { user, tokens };
+    }
+
+    const existingByEmail = await this.userRepo.findByEmail(email);
+
+    if (existingByEmail) {
+      const linked = new User({
+        ...existingByEmail.toParams(),
+        providerId: profile.id,
+        authProvider: provider,
+        emailVerified: true,
+        updatedAt: new Date(),
+      });
+      user = await this.userRepo.update(linked);
+      const tokens = await this.generateTokens(user);
+      return { user, tokens };
+    }
+
+    const fullName = extractName(profile);
+
+    const newUser = User.create({
+      id: randomUUID(),
+      fullName,
+      email: Email.create(email),
+      passwordHash: PasswordHash.create(OAUTH_PLACEHOLDER_PASSWORD),
+      authProvider: provider,
+      emailVerified: true,
+      providerId: profile.id,
+    });
+
+    user = await this.userRepo.create(newUser);
+    const tokens = await this.generateTokens(user);
+
+    return { user, tokens };
   }
 
   async logout(refreshToken: string): Promise<void> {

@@ -30,6 +30,7 @@ const mockBcryptCompare = bcrypt.compare as jest.Mock;
 
 const mockUserRepo = {
   findByEmail: jest.fn(),
+  findByProviderId: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
   updateLastLogin: jest.fn(),
@@ -509,6 +510,113 @@ describe('AuthService', () => {
       await expect(
         authService.refresh('bad-token'),
       ).rejects.toThrow(AuthenticationError);
+    });
+  });
+
+  describe('handleOAuthUser', () => {
+    const googleProfile = {
+      id: 'google-123',
+      displayName: 'Google User',
+      emails: [{ value: 'google@example.com' }],
+    };
+
+    const appleProfile = {
+      id: 'apple-456',
+      displayName: 'Apple User',
+      emails: [{ value: 'apple@example.com' }],
+    };
+
+    it('should create a new user for Google OAuth', async () => {
+      mockUserRepo.findByProviderId.mockResolvedValue(null);
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+      mockUserRepo.create.mockImplementation(async (user: User) => user);
+
+      const result = await authService.handleOAuthUser(AuthProvider.GOOGLE, googleProfile);
+
+      expect(result.user).toBeDefined();
+      expect(result.user.fullName).toBe('Google User');
+      expect(result.user.email.getValue()).toBe('google@example.com');
+      expect(result.user.authProvider).toBe(AuthProvider.GOOGLE);
+      expect(result.user.providerId).toBe('google-123');
+      expect(result.user.emailVerified).toBe(true);
+      expect(result.tokens).toBeDefined();
+      expect(mockUserRepo.create).toHaveBeenCalledTimes(1);
+      expect(mockRefreshTokenRepo.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('should create a new user for Apple OAuth', async () => {
+      mockUserRepo.findByProviderId.mockResolvedValue(null);
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+      mockUserRepo.create.mockImplementation(async (user: User) => user);
+
+      const result = await authService.handleOAuthUser(AuthProvider.APPLE, appleProfile);
+
+      expect(result.user).toBeDefined();
+      expect(result.user.fullName).toBe('Apple User');
+      expect(result.user.email.getValue()).toBe('apple@example.com');
+      expect(result.user.authProvider).toBe(AuthProvider.APPLE);
+      expect(result.user.providerId).toBe('apple-456');
+      expect(result.tokens).toBeDefined();
+    });
+
+    it('should return existing user when providerId already exists', async () => {
+      const existingUser = new User({
+        ...validUser.toParams(),
+        providerId: 'google-123',
+        authProvider: AuthProvider.GOOGLE,
+      });
+      mockUserRepo.findByProviderId.mockResolvedValue(existingUser);
+
+      const result = await authService.handleOAuthUser(AuthProvider.GOOGLE, googleProfile);
+
+      expect(result.user).toBeDefined();
+      expect(result.user.id).toBe(validUser.id);
+      expect(result.user.authProvider).toBe(AuthProvider.GOOGLE);
+      expect(mockUserRepo.updateLastLogin).toHaveBeenCalledWith(validUser.id);
+      expect(mockUserRepo.create).not.toHaveBeenCalled();
+      expect(mockUserRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('should link account when email exists but provider does not', async () => {
+      mockUserRepo.findByProviderId.mockResolvedValue(null);
+      mockUserRepo.findByEmail.mockResolvedValue(validUser);
+      mockUserRepo.update.mockImplementation(async (user: User) => user);
+
+      const result = await authService.handleOAuthUser(AuthProvider.GOOGLE, googleProfile);
+
+      expect(result.user).toBeDefined();
+      expect(result.user.id).toBe(validUser.id);
+      expect(result.user.authProvider).toBe(AuthProvider.GOOGLE);
+      expect(result.user.providerId).toBe('google-123');
+      expect(result.user.emailVerified).toBe(true);
+      expect(mockUserRepo.update).toHaveBeenCalledTimes(1);
+      expect(mockUserRepo.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw AuthenticationError when profile has no email', async () => {
+      await expect(
+        authService.handleOAuthUser(AuthProvider.GOOGLE, { id: 'no-email', emails: [] }),
+      ).rejects.toThrow('OAuth provider did not return an email address');
+    });
+
+    it('should generate tokens for the authenticated user', async () => {
+      mockUserRepo.findByProviderId.mockResolvedValue(null);
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+      mockUserRepo.create.mockImplementation(async (user: User) => user);
+
+      const result = await authService.handleOAuthUser(AuthProvider.GOOGLE, googleProfile);
+
+      expect(result.tokens.accessToken).toBe('mock-jwt-token');
+      expect(result.tokens.refreshToken).toBe('mock-jwt-token');
+    });
+  });
+
+  describe('generateTokenPair', () => {
+    it('should generate tokens without checking credentials', async () => {
+      const tokens = await authService.generateTokenPair(validUser);
+      expect(tokens.accessToken).toBe('mock-jwt-token');
+      expect(tokens.refreshToken).toBe('mock-jwt-token');
+      expect(mockRefreshTokenRepo.create).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -46,6 +46,21 @@ export const authRateLimiter = rateLimit({
   },
 });
 
+export const otpRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: env.NODE_ENV === 'production' ? createStore('rl:otp:') : undefined,
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many OTP attempts. Please try again later.',
+    },
+  },
+});
+
 export const counselingRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 50,

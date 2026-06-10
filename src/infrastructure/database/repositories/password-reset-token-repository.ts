@@ -38,6 +38,14 @@ export class PasswordResetTokenRepository {
     }
   }
 
+  async findByOtp(otp: string): Promise<PasswordResetTokenRow | null> {
+    const row = await this.db<PasswordResetTokenRow>('password_reset_tokens')
+      .where({ token_hash: otp })
+      .first();
+
+    return row ?? null;
+  }
+
   async findByTokenHash(tokenHash: string): Promise<PasswordResetTokenRow | null> {
     const row = await this.db<PasswordResetTokenRow>('password_reset_tokens')
       .where({ token_hash: tokenHash })

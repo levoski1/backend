@@ -7,6 +7,11 @@ export interface AccessTokenPayload {
   role: string;
 }
 
+export interface PasswordResetTokenPayload {
+  sub: string;
+  purpose: 'password-reset';
+}
+
 export interface RefreshTokenPayload {
   sub: string;
   jti: string;
@@ -46,6 +51,22 @@ export class JwtService {
 
   verifyRefreshToken(token: string): RefreshTokenPayload {
     return jwt.verify(token, this.refreshSecret) as RefreshTokenPayload;
+  }
+
+  generatePasswordResetToken(userId: string): string {
+    return jwt.sign(
+      { sub: userId, purpose: 'password-reset' } satisfies PasswordResetTokenPayload,
+      this.accessSecret,
+      { expiresIn: '5m' as jwt.SignOptions['expiresIn'] },
+    );
+  }
+
+  verifyPasswordResetToken(token: string): { sub: string } {
+    const payload = jwt.verify(token, this.accessSecret) as PasswordResetTokenPayload;
+    if (payload.purpose !== 'password-reset') {
+      throw new jwt.JsonWebTokenError('Invalid token purpose');
+    }
+    return { sub: payload.sub };
   }
 
   hashToken(token: string): string {

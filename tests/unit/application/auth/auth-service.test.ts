@@ -55,6 +55,7 @@ const mockVerificationTokenRepo = {
 const mockPasswordResetTokenRepo = {
   create: jest.fn(),
   findByTokenHash: jest.fn(),
+  findByOtp: jest.fn(),
   markAsUsed: jest.fn(),
   invalidateForUser: jest.fn(),
 };
@@ -296,74 +297,106 @@ describe('AuthService', () => {
     });
   });
 
-  describe('resetPassword', () => {
-    it('should update password, mark token used, and revoke all sessions for valid token', async () => {
-      const tokenRecord = {
-        id: 'token-id',
-        user_id: validUser.id,
-        token_hash: 'hashed-token',
-        expires_at: new Date(Date.now() + 3600000),
+  describe('verifyResetOtp', () => {
+    it('should return a reset token for valid OTP', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(unverifiedUser);
+      const otpRecord = {
+        id: 'otp-id',
+        user_id: unverifiedUser.id,
+        token_hash: '123456',
+        expires_at: new Date(Date.now() + 60000),
         used_at: null,
         created_at: new Date(),
       };
-      mockPasswordResetTokenRepo.findByTokenHash.mockResolvedValue(tokenRecord);
+      mockPasswordResetTokenRepo.findByOtp.mockResolvedValue(otpRecord);
+
+      const result = await authService.verifyResetOtp('john@example.com', '123456');
+
+      expect(result.resetToken).toBeDefined();
+      expect(mockPasswordResetTokenRepo.markAsUsed).toHaveBeenCalledWith('otp-id');
+    });
+
+    it('should throw NotFoundError for invalid OTP', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(unverifiedUser);
+      mockPasswordResetTokenRepo.findByOtp.mockResolvedValue(null);
+
+      await expect(authService.verifyResetOtp('john@example.com', '000000')).rejects.toThrow(NotFoundError);
+    });
+
+    it('should throw TokenExpiredError for used OTP', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(unverifiedUser);
+      const otpRecord = {
+        id: 'otp-id',
+        user_id: unverifiedUser.id,
+        token_hash: '123456',
+        expires_at: new Date(Date.now() + 60000),
+        used_at: new Date(),
+        created_at: new Date(),
+      };
+      mockPasswordResetTokenRepo.findByOtp.mockResolvedValue(otpRecord);
+
+      await expect(authService.verifyResetOtp('john@example.com', '123456')).rejects.toThrow(TokenExpiredError);
+    });
+
+    it('should throw TokenExpiredError for expired OTP', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(unverifiedUser);
+      const otpRecord = {
+        id: 'otp-id',
+        user_id: unverifiedUser.id,
+        token_hash: '123456',
+        expires_at: new Date(Date.now() - 60000),
+        used_at: null,
+        created_at: new Date(),
+      };
+      mockPasswordResetTokenRepo.findByOtp.mockResolvedValue(otpRecord);
+
+      await expect(authService.verifyResetOtp('john@example.com', '123456')).rejects.toThrow(TokenExpiredError);
+    });
+
+    it('should throw NotFoundError for non-existent user', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+
+      await expect(authService.verifyResetOtp('unknown@example.com', '123456')).rejects.toThrow(NotFoundError);
+    });
+
+    it('should throw AuthenticationError for OAuth user', async () => {
+      const googleUser = new User({
+        ...validUser.toParams(),
+        authProvider: AuthProvider.GOOGLE,
+      });
+      mockUserRepo.findByEmail.mockResolvedValue(googleUser);
+
+      await expect(authService.verifyResetOtp('google@example.com', '123456')).rejects.toThrow(AuthenticationError);
+    });
+  });
+
+  describe('resetPassword', () => {
+    beforeEach(() => {
+      const jwtVerify = jwt.verify as jest.Mock;
+      jwtVerify.mockReturnValue({ sub: validUser.id, purpose: 'password-reset' });
+    });
+
+    it('should update password and revoke all sessions for valid reset token', async () => {
       mockUserRepo.findById.mockResolvedValue(validUser);
       mockBcryptHash.mockResolvedValue('$2b$12$newhashedpassword');
 
-      await authService.resetPassword('valid-token', 'newPassword123');
+      await authService.resetPassword('valid-reset-token', 'newPassword123');
 
-      expect(mockPasswordResetTokenRepo.markAsUsed).toHaveBeenCalledWith('token-id');
       expect(mockUserRepo.update).toHaveBeenCalledTimes(1);
       expect(mockRefreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith(validUser.id);
     });
 
-    it('should throw NotFoundError for unknown token', async () => {
-      mockPasswordResetTokenRepo.findByTokenHash.mockResolvedValue(null);
+    it('should throw AuthenticationError for invalid reset token', async () => {
+      const jwtVerify = jwt.verify as jest.Mock;
+      jwtVerify.mockImplementation(() => { throw new Error('invalid'); });
 
-      await expect(authService.resetPassword('bad-token', 'newPassword123')).rejects.toThrow(NotFoundError);
-    });
-
-    it('should throw TokenExpiredError for used token', async () => {
-      const tokenRecord = {
-        id: 'token-id',
-        user_id: validUser.id,
-        token_hash: 'hashed-token',
-        expires_at: new Date(Date.now() + 3600000),
-        used_at: new Date(),
-        created_at: new Date(),
-      };
-      mockPasswordResetTokenRepo.findByTokenHash.mockResolvedValue(tokenRecord);
-
-      await expect(authService.resetPassword('used-token', 'newPassword123')).rejects.toThrow(TokenExpiredError);
-    });
-
-    it('should throw TokenExpiredError for expired token', async () => {
-      const tokenRecord = {
-        id: 'token-id',
-        user_id: validUser.id,
-        token_hash: 'hashed-token',
-        expires_at: new Date(Date.now() - 3600000),
-        used_at: null,
-        created_at: new Date(),
-      };
-      mockPasswordResetTokenRepo.findByTokenHash.mockResolvedValue(tokenRecord);
-
-      await expect(authService.resetPassword('expired-token', 'newPassword123')).rejects.toThrow(TokenExpiredError);
+      await expect(authService.resetPassword('bad-token', 'newPassword123')).rejects.toThrow(AuthenticationError);
     });
 
     it('should throw NotFoundError when user not found', async () => {
-      const tokenRecord = {
-        id: 'token-id',
-        user_id: 'nonexistent-user',
-        token_hash: 'hashed-token',
-        expires_at: new Date(Date.now() + 3600000),
-        used_at: null,
-        created_at: new Date(),
-      };
-      mockPasswordResetTokenRepo.findByTokenHash.mockResolvedValue(tokenRecord);
       mockUserRepo.findById.mockResolvedValue(null);
 
-      await expect(authService.resetPassword('valid-token', 'newPassword123')).rejects.toThrow(NotFoundError);
+      await expect(authService.resetPassword('valid-reset-token', 'newPassword123')).rejects.toThrow(NotFoundError);
     });
   });
 

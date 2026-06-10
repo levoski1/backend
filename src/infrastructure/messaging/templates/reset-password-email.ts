@@ -1,4 +1,4 @@
-export function getResetPasswordEmailHtml(link: string): string {
+export function getResetPasswordEmailHtml(otp: string): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -16,29 +16,21 @@ export function getResetPasswordEmailHtml(link: string): string {
             <td style="padding:40px 40px 32px;text-align:center">
               <h1 style="margin:0;font-size:24px;font-weight:700;color:#18181b">Reset your password</h1>
               <p style="margin:16px 0 0;font-size:15px;line-height:1.6;color:#52525b">
-                We received a request to reset your password. Click the button below to set a new one.
+                We received a request to reset your password. Enter the code below to set a new one.
               </p>
             </td>
           </tr>
           <tr>
             <td style="padding:0 40px 32px;text-align:center">
-              <a href="${link}" style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:600;color:#ffffff;background-color:#18181b;border-radius:8px;text-decoration:none">
-                Reset password
-              </a>
+              <div style="display:inline-block;padding:16px 40px;font-size:36px;font-weight:700;letter-spacing:12px;color:#18181b;background-color:#f4f4f5;border-radius:12px;font-family:monospace">
+                ${otp}
+              </div>
             </td>
           </tr>
           <tr>
             <td style="padding:0 40px 32px;text-align:center">
               <p style="margin:0;font-size:13px;color:#71717a">
-                This link expires in 1 hour. If you didn't request this, you can safely ignore this email.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 40px 24px;text-align:center">
-              <p style="margin:0;font-size:13px;color:#a1a1aa">
-                Or paste this link in your browser:<br>
-                <span style="font-size:12px;word-break:break-all;color:#71717a">${link}</span>
+                This code expires in 1 minute. If you didn't request this, you can safely ignore this email.
               </p>
             </td>
           </tr>

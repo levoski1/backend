@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { User, Email, PasswordHash, AuthProvider } from '../../domain/index.js';
 import { UserRepository } from '../../infrastructure/database/repositories/user-repository.js';
 import { RefreshTokenRepository } from '../../infrastructure/database/repositories/refresh-token-repository.js';
@@ -89,16 +89,16 @@ export class AuthService {
 
     const created = await this.userRepo.create(user);
 
-    const verificationToken = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + 60 * 1000);
     await this.verificationTokenRepo.create({
       id: randomUUID(),
       userId: created.id,
-      token: verificationToken,
+      token: otp,
       expiresAt,
     });
 
-    await this.emailService.sendVerificationEmail(created.email.getValue(), verificationToken);
+    await this.emailService.sendVerificationEmail(created.email.getValue(), otp);
 
     return { user: created };
   }
@@ -201,16 +201,16 @@ export class AuthService {
 
     await this.verificationTokenRepo.invalidateForUser(user.id);
 
-    const verificationToken = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + 60 * 1000);
     await this.verificationTokenRepo.create({
       id: randomUUID(),
       userId: user.id,
-      token: verificationToken,
+      token: otp,
       expiresAt,
     });
 
-    await this.emailService.sendVerificationEmail(user.email.getValue(), verificationToken);
+    await this.emailService.sendVerificationEmail(user.email.getValue(), otp);
   }
 
   async forgotPassword(email: string): Promise<void> {
@@ -225,35 +225,57 @@ export class AuthService {
 
     await this.passwordResetTokenRepo.invalidateForUser(user.id);
 
-    const resetToken = randomBytes(32).toString('hex');
-    const tokenHash = this.jwtService.hashToken(resetToken);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const otp = this.generateOtp();
+    const expiresAt = new Date(Date.now() + 60 * 1000);
     await this.passwordResetTokenRepo.create({
       id: randomUUID(),
       userId: user.id,
-      tokenHash,
+      tokenHash: otp,
       expiresAt,
     });
 
-    await this.emailService.sendResetPasswordEmail(user.email.getValue(), resetToken);
+    await this.emailService.sendResetPasswordEmail(user.email.getValue(), otp);
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    const tokenHash = this.jwtService.hashToken(token);
-    const storedToken = await this.passwordResetTokenRepo.findByTokenHash(tokenHash);
-    if (!storedToken) {
-      throw new NotFoundError('Password reset token');
+  async verifyResetOtp(email: string, otp: string): Promise<{ resetToken: string }> {
+    const user = await this.userRepo.findByEmail(email);
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+
+    if (user.authProvider !== AuthProvider.EMAIL) {
+      throw new AuthenticationError('Password reset not available for this account');
+    }
+
+    const storedToken = await this.passwordResetTokenRepo.findByOtp(otp);
+    if (!storedToken || storedToken.user_id !== user.id) {
+      throw new NotFoundError('Reset OTP');
     }
 
     if (storedToken.used_at) {
-      throw new TokenExpiredError('Password reset token has already been used');
+      throw new TokenExpiredError('Reset OTP has already been used');
     }
 
     if (new Date(storedToken.expires_at) < new Date()) {
-      throw new TokenExpiredError('Password reset token has expired');
+      throw new TokenExpiredError('Reset OTP has expired');
     }
 
-    const user = await this.userRepo.findById(storedToken.user_id);
+    await this.passwordResetTokenRepo.markAsUsed(storedToken.id);
+
+    const resetToken = this.jwtService.generatePasswordResetToken(user.id);
+
+    return { resetToken };
+  }
+
+  async resetPassword(resetToken: string, newPassword: string): Promise<void> {
+    let payload;
+    try {
+      payload = this.jwtService.verifyPasswordResetToken(resetToken);
+    } catch {
+      throw new AuthenticationError('Invalid or expired password reset token');
+    }
+
+    const user = await this.userRepo.findById(payload.sub);
     if (!user) {
       throw new NotFoundError('User');
     }
@@ -261,7 +283,6 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(newPassword, env.BCRYPT_SALT_ROUNDS);
     const updated = user.withPasswordHash(PasswordHash.create(hashedPassword));
     await this.userRepo.update(updated);
-    await this.passwordResetTokenRepo.markAsUsed(storedToken.id);
 
     await this.refreshTokenRepo.revokeAllForUser(user.id);
   }
@@ -323,6 +344,10 @@ export class AuthService {
   async logout(refreshToken: string): Promise<void> {
     const tokenHash = this.jwtService.hashToken(refreshToken);
     await this.refreshTokenRepo.revoke(tokenHash);
+  }
+
+  private generateOtp(): string {
+    return randomInt(100000, 999999).toString();
   }
 
   private async generateTokens(user: User, familyId?: string, deviceFingerprint?: string): Promise<AuthTokens> {

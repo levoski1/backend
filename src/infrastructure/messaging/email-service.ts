@@ -18,12 +18,9 @@ export class EmailService {
     return this.resend;
   }
 
-  async sendVerificationEmail(to: string, token: string): Promise<void> {
-    const baseUrl = env.RENDER_EXTERNAL_URL || `http://localhost:${env.PORT}`;
-    const link = `${baseUrl}${env.API_PREFIX}/auth/verify-email?token=${token}`;
-
+  async sendVerificationEmail(to: string, otp: string): Promise<void> {
     if (!env.RESEND_API_KEY) {
-      logger.warn({ to, link }, 'No RESEND_API_KEY configured — skipping verification email');
+      logger.warn({ to, otp }, 'No RESEND_API_KEY configured — skipping verification email');
       return;
     }
 
@@ -31,7 +28,7 @@ export class EmailService {
       from: env.EMAIL_FROM,
       to,
       subject: 'Verify your email address — Shelter',
-      html: getVerificationEmailHtml(link),
+      html: getVerificationEmailHtml(otp),
     });
 
     if (error) {
@@ -42,12 +39,9 @@ export class EmailService {
     logger.info({ to }, 'Verification email sent');
   }
 
-  async sendResetPasswordEmail(to: string, token: string): Promise<void> {
-    const baseUrl = env.RENDER_EXTERNAL_URL || `http://localhost:${env.PORT}`;
-    const link = `${baseUrl}${env.API_PREFIX}/auth/reset-password?token=${token}`;
-
+  async sendResetPasswordEmail(to: string, otp: string): Promise<void> {
     if (!env.RESEND_API_KEY) {
-      logger.warn({ to, link }, 'No RESEND_API_KEY configured — skipping password reset email');
+      logger.warn({ to, otp }, 'No RESEND_API_KEY configured — skipping password reset email');
       return;
     }
 
@@ -55,7 +49,7 @@ export class EmailService {
       from: env.EMAIL_FROM,
       to,
       subject: 'Reset your password — Shelter',
-      html: getResetPasswordEmailHtml(link),
+      html: getResetPasswordEmailHtml(otp),
     });
 
     if (error) {

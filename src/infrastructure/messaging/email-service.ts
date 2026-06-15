@@ -32,7 +32,7 @@ export class EmailService {
     });
 
     if (error) {
-      logger.error({ error, to }, 'Failed to send verification email');
+      logger.error({ error: { name: error.name, message: error.message }, from: env.EMAIL_FROM, to }, 'Failed to send verification email');
       throw new InternalError('Failed to send verification email');
     }
 
@@ -53,7 +53,7 @@ export class EmailService {
     });
 
     if (error) {
-      logger.error({ error, to }, 'Failed to send password reset email');
+      logger.error({ error: { name: error.name, message: error.message }, from: env.EMAIL_FROM, to }, 'Failed to send password reset email');
       throw new InternalError('Failed to send password reset email');
     }
 

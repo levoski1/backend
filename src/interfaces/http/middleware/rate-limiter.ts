@@ -61,17 +61,4 @@ export const otpRateLimiter = rateLimit({
   },
 });
 
-export const counselingRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 50,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: env.NODE_ENV === 'production' ? createStore('rl:counseling:') : undefined,
-  message: {
-    success: false,
-    error: {
-      code: 'RATE_LIMIT_EXCEEDED',
-      message: 'Message rate exceeded. Please slow down.',
-    },
-  },
-});
+

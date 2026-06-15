@@ -19,7 +19,7 @@
 
 ## 3. Environment Variables
 
-After creating the Web Service, go to **Environment** and paste the entire block below. Render parses `KEY=VALUE` lines automatically:
+After creating the Web Service, go to **Environment** and add each variable below. Do **not** paste these into source control — set them directly in the Render dashboard.
 
 ```plaintext
 NODE_ENV=production
@@ -27,27 +27,27 @@ PORT=4000
 API_PREFIX=/api/v1
 HOST=0.0.0.0
 REQUEST_TIMEOUT_MS=30000
-CORS_ORIGINS=http://localhost:3000,http://localhost:4000
+CORS_ORIGINS=https://your-frontend.com
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX=100
-JWT_ACCESS_SECRET=cbc1354241795f84900f821aa6f18c23563b4a19f66c64d5ddfab2f1c0381bce
-JWT_REFRESH_SECRET=1be77101abb5021d68d4e981912465f3f764fc3a479f22b64560732a8f9afaa6
+JWT_ACCESS_SECRET=<generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+JWT_REFRESH_SECRET=<generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 BCRYPT_SALT_ROUNDS=12
-DB_HOST=aws-1-eu-central-1.pooler.supabase.com
+DB_HOST=<supabase-pooler-host>
 DB_PORT=6543
 DB_NAME=postgres
-DB_USER=postgres.btebiznoqgzhnphhxfmz
-DB_PASSWORD=9XtJmJi-q/cbLFi
+DB_USER=<supabase-db-user>
+DB_PASSWORD=<supabase-db-password>
 DB_POOL_MIN=2
 DB_POOL_MAX=20
-REDIS_URL=redis://red-d8dan068bjmc739vodj0:6379
+REDIS_URL=<redis-connection-string-from-render-dashboard>
 LOG_LEVEL=info
 LOG_FORMAT=json
 ```
 
-Only **`CORS_ORIGINS`** needs updating when you have a frontend URL. All other values are pre-filled.
+Only **`CORS_ORIGINS`** needs updating when you have a frontend URL. All secret values must be sourced from your Supabase and Render dashboards.
 
 ## 4. Deploy
 

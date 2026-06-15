@@ -30,7 +30,7 @@ export function getVerificationEmailHtml(otp: string): string {
           <tr>
             <td style="padding:0 40px 32px;text-align:center">
               <p style="margin:0;font-size:13px;color:#71717a">
-                This code expires in 1 minute. If you didn't create an account, you can ignore this email.
+                This code expires in 5 minutes. If you didn't create an account, you can ignore this email.
               </p>
             </td>
           </tr>

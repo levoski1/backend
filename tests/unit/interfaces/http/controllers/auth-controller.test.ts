@@ -119,7 +119,7 @@ describe('AuthController', () => {
         .send({
           fullName: 'John Doe',
           email: 'john@example.com',
-          password: 'password123',
+          password: 'Password123',
           phoneNumber: '+1234567890',
         });
 
@@ -143,7 +143,7 @@ describe('AuthController', () => {
         .send({
           fullName: 'Jane Doe',
           email: 'john@example.com',
-          password: 'password123',
+          password: 'Password123',
         });
 
       expect(response.status).toBe(409);

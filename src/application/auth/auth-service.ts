@@ -9,6 +9,8 @@ import { EmailService } from '../../infrastructure/messaging/email-service.js';
 import { JwtService } from './jwt-service.js';
 import { env } from '../../config/env.js';
 import { ConflictError, AuthenticationError, NotFoundError, TokenExpiredError } from '../../shared/errors/index.js';
+import { OAUTH_PLACEHOLDER_PASSWORD, extractName } from '../../shared/utils/oauth-utils.js';
+import { logger } from '../../shared/logging/logger.js';
 
 interface OAuthProfile {
   id: string;
@@ -19,19 +21,6 @@ interface OAuthProfile {
   };
   emails?: Array<{ value: string }>;
   photos?: Array<{ value: string }>;
-}
-
-const OAUTH_PLACEHOLDER_PASSWORD = '$2b$12$placeholder.oauth.user.no.password.set';
-
-function extractName(profile: OAuthProfile): string {
-  if (profile.displayName?.trim()) {
-    return profile.displayName.trim();
-  }
-  if (profile.name?.givenName || profile.name?.familyName) {
-    return [profile.name.givenName, profile.name.familyName].filter(Boolean).join(' ').trim();
-  }
-  const emailName = profile.emails?.[0]?.value?.split('@')[0] ?? 'User';
-  return emailName;
 }
 
 export interface RegisterParams {
@@ -90,7 +79,7 @@ export class AuthService {
     const created = await this.userRepo.create(user);
 
     const otp = this.generateOtp();
-    const expiresAt = new Date(Date.now() + 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await this.verificationTokenRepo.create({
       id: randomUUID(),
       userId: created.id,
@@ -98,7 +87,9 @@ export class AuthService {
       expiresAt,
     });
 
-    await this.emailService.sendVerificationEmail(created.email.getValue(), otp);
+    await this.emailService.sendVerificationEmail(created.email.getValue(), otp).catch((err: unknown) => {
+      logger.error({ err, to: created.email.getValue() }, 'Failed to send verification email after registration — user can request resend');
+    });
 
     return { user: created };
   }
@@ -202,7 +193,7 @@ export class AuthService {
     await this.verificationTokenRepo.invalidateForUser(user.id);
 
     const otp = this.generateOtp();
-    const expiresAt = new Date(Date.now() + 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await this.verificationTokenRepo.create({
       id: randomUUID(),
       userId: user.id,
@@ -226,7 +217,7 @@ export class AuthService {
     await this.passwordResetTokenRepo.invalidateForUser(user.id);
 
     const otp = this.generateOtp();
-    const expiresAt = new Date(Date.now() + 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await this.passwordResetTokenRepo.create({
       id: randomUUID(),
       userId: user.id,
@@ -323,7 +314,7 @@ export class AuthService {
       return { user, tokens };
     }
 
-    const fullName = extractName(profile);
+    const fullName = extractName({ displayName: profile.displayName, name: profile.name, email: profile.emails?.[0]?.value });
 
     const newUser = User.create({
       id: randomUUID(),

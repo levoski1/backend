@@ -141,7 +141,7 @@ export const login = (req: Request, res: Response, next: NextFunction) => {
     const user = passportUser as unknown as User;
 
     try {
-      const { tokens } = await authService.login(user.email.getValue(), req.body.password);
+      const tokens = await authService.generateTokenPair(user);
       res.status(200).json({
         success: true,
         data: {
@@ -183,41 +183,70 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 function renderOAuthSuccess(res: Response, tokens: { accessToken: string; refreshToken: string }, user: User) {
+  const data = JSON.stringify({
+    deepLink: env.MOBILE_DEEP_LINK,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    userId: user.id,
+    email: user.email.getValue(),
+    fullName: user.fullName,
+  });
+
   res.status(200).send(`
     <html><body style="font-family:sans-serif;text-align:center;padding:60px 20px">
       <h1 style="font-size:24px;color:#18181b">Authentication successful ✓</h1>
-      <p style="color:#52525b;margin-bottom:24px">Signed in as ${user.fullName} (${user.email.getValue()})</p>
+      <p style="color:#52525b;margin-bottom:24px">Signed in as ${escapeHtml(user.fullName)} (${escapeHtml(user.email.getValue())})</p>
       <div style="background:#f4f4f5;border-radius:8px;padding:16px;text-align:left;max-width:480px;margin:0 auto;word-break:break-all">
         <p><strong>Access Token:</strong></p>
-        <p style="font-size:12px;color:#18181b">${tokens.accessToken}</p>
+        <p style="font-size:12px;color:#18181b">${escapeHtml(tokens.accessToken)}</p>
         <p style="margin-top:12px"><strong>Refresh Token:</strong></p>
-        <p style="font-size:12px;color:#18181b">${tokens.refreshToken}</p>
+        <p style="font-size:12px;color:#18181b">${escapeHtml(tokens.refreshToken)}</p>
       </div>
       <p style="margin-top:24px;font-size:14px;color:#52525b">You can close this tab and return to the app.</p>
       <script>
-        const url = new URL('${env.MOBILE_DEEP_LINK}');
-        url.searchParams.set('accessToken', '${tokens.accessToken}');
-        url.searchParams.set('refreshToken', '${tokens.refreshToken}');
-        url.searchParams.set('userId', '${user.id}');
-        url.searchParams.set('email', '${user.email.getValue()}');
-        url.searchParams.set('fullName', '${user.fullName}');
-        window.location.replace(url.toString());
+        (function() {
+          var d = ${data};
+          var url = new URL(d.deepLink);
+          url.searchParams.set('accessToken', d.accessToken);
+          url.searchParams.set('refreshToken', d.refreshToken);
+          url.searchParams.set('userId', d.userId);
+          url.searchParams.set('email', d.email);
+          url.searchParams.set('fullName', d.fullName);
+          window.location.replace(url.toString());
+        })();
       </script>
     </body></html>
   `);
 }
 
 function renderOAuthError(res: Response, message: string) {
+  const data = JSON.stringify({
+    deepLink: env.MOBILE_DEEP_LINK,
+    error: message,
+  });
+
   res.status(401).send(`
     <html><body style="font-family:sans-serif;text-align:center;padding:60px 20px">
       <h1 style="font-size:24px;color:#ef4444">Authentication failed</h1>
-      <p style="color:#52525b">${message}</p>
+      <p style="color:#52525b">${escapeHtml(message)}</p>
       <p style="margin-top:24px;font-size:14px;color:#52525b">Please try signing in again.</p>
       <script>
-        const url = new URL('${env.MOBILE_DEEP_LINK}');
-        url.searchParams.set('error', '${message}');
-        window.location.replace(url.toString());
+        (function() {
+          var d = ${data};
+          var url = new URL(d.deepLink);
+          url.searchParams.set('error', d.error);
+          window.location.replace(url.toString());
+        })();
       </script>
     </body></html>
   `);

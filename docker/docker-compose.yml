@@ -7,6 +7,8 @@ services:
       - '4000:4000'
     volumes:
       - ../src:/app/src
+    env_file:
+      - ../.env
     environment:
       NODE_ENV: development
       PORT: 4000
@@ -22,8 +24,6 @@ services:
       DB_PASSWORD: local_dev
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_ACCESS_SECRET: cbc1354241795f84900f821aa6f18c23563b4a19f66c64d5ddfab2f1c0381bce
-      JWT_REFRESH_SECRET: 1be77101abb5021d68d4e981912465f3f764fc3a479f22b64560732a8f9afaa6
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
       BCRYPT_SALT_ROUNDS: 12

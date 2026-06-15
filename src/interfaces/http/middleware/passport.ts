@@ -9,22 +9,9 @@ import type { VerifyCallback } from 'passport-google-oauth20';
 import { UserRepository } from '../../../infrastructure/database/repositories/user-repository.js';
 import { env } from '../../../config/env.js';
 import { User, Email, PasswordHash, AuthProvider } from '../../../domain/index.js';
+import { OAUTH_PLACEHOLDER_PASSWORD, extractName } from '../../../shared/utils/oauth-utils.js';
 
 const userRepo = new UserRepository();
-const OAUTH_PLACEHOLDER_PASSWORD = '$2b$12$placeholder.oauth.user.no.password.set';
-
-function extractName(displayName?: string, name?: { givenName?: string; familyName?: string }, email?: string): string {
-  if (displayName?.trim()) {
-    return displayName.trim();
-  }
-  if (name?.givenName || name?.familyName) {
-    return [name.givenName, name.familyName].filter(Boolean).join(' ').trim();
-  }
-  if (email) {
-    return email.split('@')[0];
-  }
-  return 'User';
-}
 
 const localVerify: LocalVerifyFunction = async (email, password, done) => {
   try {
@@ -85,7 +72,7 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
         return done(null, updated);
       }
 
-      const fullName = extractName(profile.displayName, profile.name, email);
+      const fullName = extractName({ displayName: profile.displayName, name: profile.name, email });
 
       const newUser = User.create({
         id: randomUUID(),
@@ -156,11 +143,10 @@ if (env.APPLE_CLIENT_ID && env.APPLE_TEAM_ID && env.APPLE_KEY_ID && env.APPLE_PR
         return done(null, updated);
       }
 
-      const fullName = extractName(
-        profile?.name as string | undefined,
-        undefined,
+      const fullName = extractName({
+        displayName: profile?.name as string | undefined,
         email,
-      );
+      });
 
       const newUser = User.create({
         id: randomUUID(),

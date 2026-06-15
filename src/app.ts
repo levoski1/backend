@@ -77,8 +77,6 @@ app.get('/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // ─── Routes ─────────────────────────────────────────────
 app.use(`${env.API_PREFIX}/auth`, authRouter);
-// app.use(`${env.API_PREFIX}/profiles`, profileRouter);
-// app.use(`${env.API_PREFIX}/feed`, feedRouter);
 
 // ─── Error Handling ─────────────────────────────────────
 app.use(ErrorHandler.handle);

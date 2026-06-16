@@ -10,7 +10,7 @@ services:
       - key: LOG_FORMAT
         value: json
       - key: CORS_ORIGINS
-        value: https://your-frontend-domain.com
+        value: https://admin-dashboard-ruby-phi.vercel.app
       - key: DB_HOST
         sync: false
       - key: DB_PORT
@@ -26,6 +26,10 @@ services:
           type: redis
           name: shelter-redis
           property: connectionString
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: Shelter <noreply@mail.shelterfaithapps.xyz>
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET

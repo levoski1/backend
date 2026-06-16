@@ -90,7 +90,7 @@ export class AuthService {
     const created = await this.userRepo.create(user);
 
     const otp = this.generateOtp();
-    const expiresAt = new Date(Date.now() + 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await this.verificationTokenRepo.create({
       id: randomUUID(),
       userId: created.id,
@@ -202,7 +202,7 @@ export class AuthService {
     await this.verificationTokenRepo.invalidateForUser(user.id);
 
     const otp = this.generateOtp();
-    const expiresAt = new Date(Date.now() + 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await this.verificationTokenRepo.create({
       id: randomUUID(),
       userId: user.id,
@@ -226,7 +226,7 @@ export class AuthService {
     await this.passwordResetTokenRepo.invalidateForUser(user.id);
 
     const otp = this.generateOtp();
-    const expiresAt = new Date(Date.now() + 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     await this.passwordResetTokenRepo.create({
       id: randomUUID(),
       userId: user.id,

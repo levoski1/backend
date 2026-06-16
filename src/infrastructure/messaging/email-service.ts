@@ -2,8 +2,13 @@ import { Resend } from 'resend';
 import { env } from '../../config/env.js';
 import { logger } from '../../shared/logging/logger.js';
 import { InternalError } from '../../shared/errors/index.js';
-import { getVerificationEmailHtml } from './templates/verification-email.js';
-import { getResetPasswordEmailHtml } from './templates/reset-password-email.js';
+import { getVerificationEmailHtml, getVerificationEmailPlainText } from './templates/verification-email.js';
+import { getResetPasswordEmailHtml, getResetPasswordEmailPlainText } from './templates/reset-password-email.js';
+
+function extractEmailAddress(from: string): string {
+  const match = from.match(/<([^>]+)>/);
+  return match ? match[1] : from;
+}
 
 export class EmailService {
   private resend: Resend | null = null;
@@ -18,52 +23,55 @@ export class EmailService {
     return this.resend;
   }
 
-  async sendVerificationEmail(to: string, token: string): Promise<void> {
-    const baseUrl = env.RENDER_EXTERNAL_URL || `http://localhost:${env.PORT}`;
-    const link = `${baseUrl}${env.API_PREFIX}/auth/verify-email?token=${token}`;
-
+  private async sendEmail(params: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+  }): Promise<void> {
     if (!env.RESEND_API_KEY) {
-      logger.warn({ to, link }, 'No RESEND_API_KEY configured — skipping verification email');
+      logger.warn({ to: params.to, subject: params.subject }, 'No RESEND_API_KEY configured — skipping email');
       return;
     }
 
+    const replyTo = extractEmailAddress(env.EMAIL_FROM);
+
     const { error } = await this.getClient().emails.send({
       from: env.EMAIL_FROM,
-      to,
-      subject: 'Verify your email address — Shelter',
-      html: getVerificationEmailHtml(link),
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+      replyTo,
+      headers: {
+        'X-Entity-Ref-ID': `${Date.now()}-${params.to}`,
+      },
     });
 
     if (error) {
-      logger.error({ error, to }, 'Failed to send verification email');
-      throw new InternalError('Failed to send verification email');
+      logger.error({ error: { name: error.name, message: error.message }, from: env.EMAIL_FROM, to: params.to }, 'Failed to send email');
+      throw new InternalError('Failed to send email');
     }
 
-    logger.info({ to }, 'Verification email sent');
+    logger.info({ to: params.to, subject: params.subject }, 'Email sent');
   }
 
-  async sendResetPasswordEmail(to: string, token: string): Promise<void> {
-    const baseUrl = env.RENDER_EXTERNAL_URL || `http://localhost:${env.PORT}`;
-    const link = `${baseUrl}${env.API_PREFIX}/auth/reset-password?token=${token}`;
+  async sendVerificationEmail(to: string, otp: string): Promise<void> {
+    await this.sendEmail({
+      to,
+      subject: 'Verify your email address — Shelter',
+      html: getVerificationEmailHtml(otp),
+      text: getVerificationEmailPlainText(otp),
+    });
+  }
 
-    if (!env.RESEND_API_KEY) {
-      logger.warn({ to, link }, 'No RESEND_API_KEY configured — skipping password reset email');
-      return;
-    }
-
-    const { error } = await this.getClient().emails.send({
-      from: env.EMAIL_FROM,
+  async sendResetPasswordEmail(to: string, otp: string): Promise<void> {
+    await this.sendEmail({
       to,
       subject: 'Reset your password — Shelter',
-      html: getResetPasswordEmailHtml(link),
+      html: getResetPasswordEmailHtml(otp),
+      text: getResetPasswordEmailPlainText(otp),
     });
-
-    if (error) {
-      logger.error({ error, to }, 'Failed to send password reset email');
-      throw new InternalError('Failed to send password reset email');
-    }
-
-    logger.info({ to }, 'Password reset email sent');
   }
 }
 

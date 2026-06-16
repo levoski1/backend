@@ -1,167 +1,185 @@
-# Vesting Vault Backend & Contracts
+# Shelter API
 
-[![Tests](https://github.com/Vesting-Vault/backend/actions/workflows/test.yml/badge.svg)](https://github.com/Vesting-Vault/backend/actions/workflows/test.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Faith-based mental health backend.
 
-Vesting Vault is a token vesting protocol built on the Stellar/Soroban network. This repository contains the Node.js backend API and the Soroban Rust smart contracts for on-chain vesting enforcement.
+## Stack
+
+- **Runtime:** Node.js 20
+- **Framework:** Express.js 4 + TypeScript 5
+- **DB:** PostgreSQL 16 (via Supabase)
+- **Cache:** Redis 7 (via Render Redis)
+- **Auth:** JWT access/refresh tokens with rotation
+
+---
+
+## Local Setup
+
+### Prerequisites
+
+- Node.js 20
+- PostgreSQL 16
+- Redis 7 (or Docker)
+
+### Install
+
+```bash
+git clone https://github.com/levoski1/Backend.git
+cd Backend
+cp .env.example .env
+npm install
+```
+
+### Environment Variables
+
+Edit `.env` with your values:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NODE_ENV` | no | `development` / `production` / `test` |
+| `PORT` | no | Default `4000` |
+| `JWT_ACCESS_SECRET` | **yes** | ≥32 chars |
+| `JWT_REFRESH_SECRET` | **yes** | ≥32 chars |
+| `DB_HOST` | **yes** | Supabase host |
+| `DB_PORT` | **yes** | `6543` (transaction pooler) |
+| `DB_NAME` | **yes** | `postgres` |
+| `DB_USER` | **yes** | `postgres.<ref>` |
+| `DB_PASSWORD` | **yes** | Supabase password |
+| `REDIS_URL` | no | Single-URI Redis (Render). Falls back to REDIS_HOST/PORT |
+
+Full list in `.env.example`.
+
+### Run
+
+```bash
+npm run dev           # hot-reload
+npm run build         # build
+npm start             # production (after build)
+```
+
+### Migrations
+
+```bash
+npm run db:migrate    # latest
+npm run db:seed       # seed data
+npm run db:rollback   # revert last batch
+```
+
+### Tests
+
+```bash
+npm test              # all
+npm run test:unit     # unit only
+npm run test:cov      # with coverage
+```
+
+---
+
+## Auth Endpoints
+
+All under `/api/v1/auth`.
+
+### `POST /register`
+
+```
+Body: { "fullName": "Levi Test", "email": "levi@test.com", "password": "TestPass123" }
+201: {
+  "success": true,
+  "data": {
+    "user": { "id": "...", "fullName": "...", "email": "..." },
+    "accessToken": "eyJ...",
+    "refreshToken": "eyJ..."
+  }
+}
+```
+
+### `POST /login`
+
+```
+Body: { "email": "levi@test.com", "password": "TestPass123" }
+200: { "success": true, "data": { "user": {...}, "accessToken": "eyJ...", "refreshToken": "eyJ..." } }
+401: { "success": false, "error": { "code": "AUTHENTICATION_ERROR", "message": "Invalid email or password" } }
+```
+
+### `POST /refresh`
+
+```
+Body: { "refreshToken": "eyJ..." }
+200: { "success": true, "data": { "user": {...}, "accessToken": "eyJ... (new)", "refreshToken": "eyJ... (new)" } }
+401: revoked or expired token
+```
+
+### `POST /logout`
+
+```
+Body: { "refreshToken": "eyJ..." }
+200: { "success": true, "data": null }
+```
+
+### `GET /health`
+
+```
+200: { "success": true, "data": { "status": "healthy", "database": "connected" } }
+```
+
+---
+
+## Deploy (Render)
+
+### Web Service
+
+1. Connect your GitHub repo
+2. **Build:** `npm install; npm run build`
+3. **Start:** `npm start`
+4. Set all env vars from `.env.example` in Render dashboard
+
+### Redis
+
+1. Create Redis instance in Render dashboard
+2. Copy connection string → set as `REDIS_URL` env var on your Web Service
+3. Example: `redis://red-xxxxxxxxxxxxx:6379`
+
+### Manual Test Flow
+
+```bash
+curl -X POST https://backend-vxbe.onrender.com/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"fullName":"Levi Test","email":"levi@test.com","password":"TestPass123"}'
+```
+
+Full manual test cases in [`levi_tests/api_tests.md`](levi_tests/api_tests.md).
+
+---
 
 ## Project Structure
 
 ```
-Vesting-Vault/
-├── backend/              # Node.js Express API (NestJS + GraphQL)
-│   ├── src/              # Application source code
-│   ├── test/             # Jest unit & integration tests
-│   ├── e2e/              # Playwright end-to-end tests
-│   ├── docs/             # Backend-specific documentation
-│   ├── migrations/       # Database migrations
-│   └── package.json
-├── contracts/            # Soroban (Rust) smart contracts
-│   ├── merkle_vault/     # Merkle vault contract
-│   └── README.md
-└── .github/              # CI/CD workflows & Dependabot
+src/
+├── application/    # business logic (auth, profile, etc.)
+├── domain/         # entities, value objects
+├── infrastructure/ # DB, cache, external services
+├── interfaces/     # HTTP routes, controllers, middleware
+├── shared/         # errors, logging, utils
+└── config/         # env validation (zod)
+tests/
+├── unit/
+├── integration/
+└── e2e/
 ```
 
-## Getting Started
+---
 
-### Prerequisites
+## Key Scripts
 
-- **Node.js** >= 20.11.0
-- **Rust** + Cargo (for smart contracts)
-- **Docker** & Docker Compose (recommended)
-- **PostgreSQL** database
-- **Redis** cache
+| Script | What |
+|--------|------|
+| `npm run dev` | Dev with hot-reload |
+| `npm run build` | TypeScript compile |
+| `npm start` | Run compiled app |
+| `npm test` | Full test suite |
+| `npm run lint` | ESLint |
+| `npm run test:cov` | Coverage |
 
-### Quick Start (Docker - Recommended)
-
-```bash
-git clone https://github.com/Vesting-Vault/backend.git
-cd backend
-
-docker-compose up -d
-
-# Verify
-curl http://localhost:3000/health
-```
-
-Services:
-- **Backend API**: http://localhost:3000
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
-
-### Backend Setup (Manual)
-
-```bash
-cd backend
-cp .env.example .env
-npm install
-npm start
-```
-
-### Smart Contracts
-
-```bash
-cd contracts
-cargo test
-```
-
-## Testing
-
-```bash
-cd backend
-
-# Run all unit & integration tests
-npm test
-
-# Run with coverage
-npm run test:coverage
-
-# Integration tests only
-npm run test:integration
-
-# E2E tests (Playwright)
-npm run test:e2e
-
-# Vesting parity tests
-npm run test:parity
-```
-
-## API Overview
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | Welcome message |
-| `GET /health` | Health check |
-
-### Key Features
-
-- **Vesting Schedules**: Create, manage, and claim token vesting schedules with cliff support
-- **Cross-Asset Operations**: Multi-currency vesting with precise decimal normalization (BigNumber.js)
-- **Stellar Integration**: SEP-10 authentication, Horizon API with circuit breaker fallback
-- **Circuit Breakers**: Protection against database overload during mass unlock events
-- **Observability**: OpenTelemetry distributed tracing, Jaeger/OTLP exporters
-- **Cache Invalidation**: Event-driven cache management for cap table updates
-- **Rate Limiting**: Wallet-based rate limiting with configurable thresholds
-- **GraphQL API**: Apollo Server with subscriptions support
-
-## Configuration
-
-Key environment variables (see `backend/.env.example`):
-
-```bash
-# Server
-PORT=3000
-NODE_ENV=development
-
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=vesting_vault
-DB_USER=postgres
-DB_PASSWORD=password
-
-# Stellar
-STELLAR_RPC_URL=https://soroban-testnet.stellar.org
-STELLAR_NETWORK_PASSPHRASE=Test SDF Future Network ; October 2022
-
-# Circuit Breaker (optional)
-DATABASE_CIRCUIT_BREAKER_FAILURE_THRESHOLD=15
-DATABASE_CIRCUIT_BREAKER_MASS_UNLOCK_THRESHOLD=50
-```
-
-## Architecture
-
-### Circuit Breaker System
-
-Protects database writes during mass unlock events with 4 states:
-- **CLOSED**: Normal operation
-- **THROTTLING**: High load detected, probabilistic throttling
-- **OPEN**: Failure threshold exceeded, operations rejected
-- **HALF_OPEN**: Recovery testing with limited operations
-
-### Asset Decimal Normalizer
-
-Handles cross-asset precision for Stellar tokens:
-- XLM (7 decimals), USDC/EURC (6), BTC/wBTC (8), ETH/wETH (18)
-
-### Observability Stack
-
-- **OpenTelemetry**: Distributed tracing for API, Redis, PostgreSQL
-- **Prometheus**: Metrics collection via prom-client
-- **Circuit Breaker Monitor**: Real-time alerting (email, Slack)
-
-## Documentation
-
-- [Contributing Guide](CONTRIBUTING.md)
-- [Issue Solutions Summary](ISSUE_SOLUTIONS.md) - Resolved issues #250, #256, #258
-- [Backend Setup Guide](backend/SETUP_GUIDE.md)
-- [Vesting History API](backend/README_VESTING_HISTORY_API.md)
-- [DLQ System](backend/README_DLQ_SYSTEM.md)
-- [Ledger Reorg Handling](backend/README_LEDGER_REORG_HANDLING.md)
-- [Soroban Event Poller](backend/README_SOROBAN_EVENT_POLLER.md)
-- [Database Circuit Breaker](DATABASE_CIRCUIT_BREAKER_README.md)
-- [Asset Decimal Normalizer](ASSET_DECIMAL_NORMALIZER_README.md)
-- [Off-Ramp Integration](backend/docs/OFF_RAMP_INTEGRATION.md)
+---
 
 ## License
 

@@ -1,0 +1,85 @@
+import 'express-async-errors';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import responseTime from 'response-time';
+import swaggerUi from 'swagger-ui-express';
+import { env } from './config/env.js';
+import { requestContext } from './interfaces/http/middleware/request-context.js';
+import { ErrorHandler } from './interfaces/http/middleware/error-handler.js';
+import { globalRateLimiter } from './interfaces/http/middleware/rate-limiter.js';
+import { requestTimeout } from './interfaces/http/middleware/timeout.js';
+import { pingDb } from './infrastructure/database/connection.js';
+import { swaggerSpec } from './interfaces/http/swagger/index.js';
+import authRouter from './interfaces/http/routes/auth-routes.js';
+
+const app = express();
+
+// ─── Security ───────────────────────────────────────────
+app.set('trust proxy', 1);
+app.use(
+  helmet({
+    contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
+    crossOriginEmbedderPolicy: false,
+  }),
+);
+app.use(
+  cors({
+    origin: env.CORS_ORIGINS,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    exposedHeaders: ['X-Request-Id'],
+  }),
+);
+
+// ─── Performance ────────────────────────────────────────
+app.use(compression());
+app.use(responseTime());
+
+// ─── Rate Limiting ──────────────────────────────────────
+app.use(globalRateLimiter);
+
+// ─── Body Parsing ───────────────────────────────────────
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// ─── Request Context & Timeout ──────────────────────────
+app.use(requestContext);
+app.use(requestTimeout);
+
+// ─── Health Check ───────────────────────────────────────
+app.get(`${env.API_PREFIX}/health`, async (_req, res) => {
+  const dbOk = await pingDb();
+  const status = dbOk ? 'healthy' : 'degraded';
+
+  res.status(dbOk ? 200 : 503).json({
+    success: dbOk,
+    data: {
+      status,
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      memory: process.memoryUsage(),
+      nodeVersion: process.version,
+      database: dbOk ? 'connected' : 'disconnected',
+    },
+  });
+});
+
+// ─── API Documentation ──────────────────────────────────
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Shelter API Docs',
+}));
+
+app.get('/docs.json', (_req, res) => res.json(swaggerSpec));
+
+// ─── Routes ─────────────────────────────────────────────
+app.use(`${env.API_PREFIX}/auth`, authRouter);
+
+// ─── Error Handling ─────────────────────────────────────
+app.use(ErrorHandler.handle);
+
+export default app;
+

@@ -1,0 +1,335 @@
+import type { Request, Response, NextFunction } from 'express';
+import passport from 'passport';
+import type { User } from '../../../domain/index.js';
+import { AuthService } from '../../../application/auth/auth-service.js';
+import { asyncHandler } from '../../../shared/utils/index.js';
+import { env } from '../../../config/env.js';
+import { AuthenticationError } from '../../../shared/errors/index.js';
+
+const authService = new AuthService();
+
+function sanitizeUser(user: User) {
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email.getValue(),
+    authProvider: user.authProvider,
+    accountStatus: user.accountStatus,
+    emailVerified: user.emailVerified,
+    phoneNumber: user.phoneNumber,
+    providerId: user.providerId,
+  };
+}
+
+export const register = asyncHandler(async (req: Request, res: Response) => {
+  const { fullName, email, password, phoneNumber } = req.body;
+
+  const { user } = await authService.register({ fullName, email, password, phoneNumber });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      user: sanitizeUser(user),
+    },
+    meta: {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+  const { token } = req.body;
+
+  const { user } = await authService.verifyEmail(token);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      user: sanitizeUser(user),
+    },
+    meta: {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+export const resendVerification = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  await authService.resendVerification(email);
+
+  res.status(200).json({
+    success: true,
+    data: null,
+    meta: {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  await authService.forgotPassword(email);
+
+  res.status(200).json({
+    success: true,
+    data: null,
+    meta: {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+export const verifyResetOtp = asyncHandler(async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
+
+  const { resetToken } = await authService.verifyResetOtp(email, otp);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      resetToken,
+    },
+    meta: {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { resetToken, password } = req.body;
+
+  await authService.resetPassword(resetToken, password);
+
+  res.status(200).json({
+    success: true,
+    data: null,
+    meta: {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+export const login = (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate('local', { session: false }, async (err: Error | null, passportUser: Express.User | false, info: { message?: string } | undefined) => {
+    if (err) {
+      return next(err);
+    }
+
+    if (!passportUser) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: info?.message ?? 'Invalid email or password',
+        },
+        meta: {
+          requestId: req.requestId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+
+    const user = passportUser as unknown as User;
+
+    try {
+      const tokens = await authService.generateTokenPair(user);
+      res.status(200).json({
+        success: true,
+        data: {
+          user: sanitizeUser(user),
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
+        meta: {
+          requestId: req.requestId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  })(req, res, next);
+};
+
+export const refresh = asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    throw new AuthenticationError('Refresh token is required');
+  }
+
+  const { user, tokens } = await authService.refresh(refreshToken, req.headers['user-agent']);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      user: sanitizeUser(user),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    },
+    meta: {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+function renderOAuthSuccess(res: Response, tokens: { accessToken: string; refreshToken: string }, user: User) {
+  const data = JSON.stringify({
+    deepLink: env.MOBILE_DEEP_LINK,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    userId: user.id,
+    email: user.email.getValue(),
+    fullName: user.fullName,
+  });
+
+  res.status(200).send(`
+    <html><body style="font-family:sans-serif;text-align:center;padding:60px 20px">
+      <h1 style="font-size:24px;color:#18181b">Authentication successful ✓</h1>
+      <p style="color:#52525b;margin-bottom:24px">Signed in as ${escapeHtml(user.fullName)} (${escapeHtml(user.email.getValue())})</p>
+      <div style="background:#f4f4f5;border-radius:8px;padding:16px;text-align:left;max-width:480px;margin:0 auto;word-break:break-all">
+        <p><strong>Access Token:</strong></p>
+        <p style="font-size:12px;color:#18181b">${escapeHtml(tokens.accessToken)}</p>
+        <p style="margin-top:12px"><strong>Refresh Token:</strong></p>
+        <p style="font-size:12px;color:#18181b">${escapeHtml(tokens.refreshToken)}</p>
+      </div>
+      <p style="margin-top:24px;font-size:14px;color:#52525b">You can close this tab and return to the app.</p>
+      <script>
+        (function() {
+          var d = ${data};
+          var url = new URL(d.deepLink);
+          url.searchParams.set('accessToken', d.accessToken);
+          url.searchParams.set('refreshToken', d.refreshToken);
+          url.searchParams.set('userId', d.userId);
+          url.searchParams.set('email', d.email);
+          url.searchParams.set('fullName', d.fullName);
+          window.location.replace(url.toString());
+        })();
+      </script>
+    </body></html>
+  `);
+}
+
+function renderOAuthError(res: Response, message: string) {
+  const data = JSON.stringify({
+    deepLink: env.MOBILE_DEEP_LINK,
+    error: message,
+  });
+
+  res.status(401).send(`
+    <html><body style="font-family:sans-serif;text-align:center;padding:60px 20px">
+      <h1 style="font-size:24px;color:#ef4444">Authentication failed</h1>
+      <p style="color:#52525b">${escapeHtml(message)}</p>
+      <p style="margin-top:24px;font-size:14px;color:#52525b">Please try signing in again.</p>
+      <script>
+        (function() {
+          var d = ${data};
+          var url = new URL(d.deepLink);
+          url.searchParams.set('error', d.error);
+          window.location.replace(url.toString());
+        })();
+      </script>
+    </body></html>
+  `);
+}
+
+function handleOAuthCallback(strategy: string, req: Request, res: Response, next: NextFunction) {
+  passport.authenticate(strategy, { session: false }, async (err: Error | null, user: Express.User | false, info: { message?: string } | undefined) => {
+    if (err) {
+      return next(err);
+    }
+
+    if (!user) {
+      const message = info?.message ?? 'OAuth authentication failed';
+      if (env.NODE_ENV === 'development') {
+        return renderOAuthError(res, message);
+      }
+      const url = new URL(env.MOBILE_DEEP_LINK);
+      url.searchParams.set('error', message);
+      return res.redirect(url.toString());
+    }
+
+    try {
+      const passportUser = user as User;
+      const tokens = await authService.generateTokenPair(passportUser);
+
+      if (env.NODE_ENV === 'development') {
+        return renderOAuthSuccess(res, tokens, passportUser);
+      }
+
+      const url = new URL(env.MOBILE_DEEP_LINK);
+      url.searchParams.set('accessToken', tokens.accessToken);
+      url.searchParams.set('refreshToken', tokens.refreshToken);
+      url.searchParams.set('userId', passportUser.id);
+      url.searchParams.set('email', passportUser.email.getValue());
+      url.searchParams.set('fullName', passportUser.fullName);
+      res.redirect(url.toString());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'OAuth authentication failed';
+      if (env.NODE_ENV === 'development') {
+        return renderOAuthError(res, message);
+      }
+      const url = new URL(env.MOBILE_DEEP_LINK);
+      url.searchParams.set('error', message);
+      res.redirect(url.toString());
+    }
+  })(req, res, next);
+}
+
+export const googleAuth = (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+  })(req, res, next);
+};
+
+export const googleCallback = (req: Request, res: Response, next: NextFunction) => {
+  handleOAuthCallback('google', req, res, next);
+};
+
+export const appleAuth = (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate('apple', {
+    scope: ['name', 'email'],
+    session: false,
+  })(req, res, next);
+};
+
+export const appleCallback = (req: Request, res: Response, next: NextFunction) => {
+  handleOAuthCallback('apple', req, res, next);
+};
+
+export const logout = asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+
+  if (refreshToken) {
+    await authService.logout(refreshToken);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: null,
+    meta: {
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});

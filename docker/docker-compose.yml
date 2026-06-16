@@ -1,0 +1,66 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - '4000:4000'
+    volumes:
+      - ../src:/app/src
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      HOST: 0.0.0.0
+      API_PREFIX: /api/v1
+      CORS_ORIGINS: 'http://localhost:3000,http://localhost:4000'
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX: 1000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: shelter
+      DB_USER: shelter_app
+      DB_PASSWORD: local_dev
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      BCRYPT_SALT_ROUNDS: 12
+      LOG_LEVEL: debug
+      LOG_FORMAT: pretty
+      REQUEST_TIMEOUT_MS: 30000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: shelter
+      POSTGRES_USER: shelter_app
+      POSTGRES_PASSWORD: local_dev
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U shelter_app']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:

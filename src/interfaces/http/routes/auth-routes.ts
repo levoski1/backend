@@ -1,0 +1,472 @@
+import { Router } from 'express';
+import { validate } from '../middleware/validate.js';
+import { authRateLimiter, otpRateLimiter } from '../middleware/rate-limiter.js';
+import { registerSchema, loginSchema, refreshSchema, verifyEmailSchema, resendVerificationSchema, forgotPasswordSchema, verifyResetOtpSchema, resetPasswordSchema } from '../validators/auth-validators.js';
+import { register, login, refresh, logout, verifyEmail, resendVerification, forgotPassword, verifyResetOtp, resetPassword, googleAuth, googleCallback, appleAuth, appleCallback } from '../controllers/auth-controller.js';
+import '../middleware/passport.js';
+
+const router = Router();
+
+/**
+ * @openapi
+ * /auth/register:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Register a new user account
+ *     description: Creates a new user account with local (email/password) authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RegisterInput'
+ *     responses:
+ *       201:
+ *         description: Account created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     accessToken:
+ *                       $ref: '#/components/schemas/AuthTokens/properties/accessToken'
+ *                     refreshToken:
+ *                       $ref: '#/components/schemas/AuthTokens/properties/refreshToken'
+ *                   required: [user, accessToken, refreshToken]
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: Email already in use
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/register', authRateLimiter, validate(registerSchema), register);
+
+/**
+ * @openapi
+ * /auth/verify-email:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Verify email address with token
+ *     description: Verifies a user's email address using the token sent in the verification email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VerifyEmailInput'
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Token not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       410:
+ *         description: Token expired or already used
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/verify-email', validate(verifyEmailSchema), verifyEmail);
+
+/**
+ * @openapi
+ * /auth/resend-verification:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Resend verification email
+ *     description: Resends the email verification OTP to the user's email address. Invalidates previous OTPs.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ResendVerificationInput'
+ *     responses:
+ *       200:
+ *         description: Verification email sent (if account exists)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: null
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/resend-verification', authRateLimiter, validate(resendVerificationSchema), resendVerification);
+
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Authenticate with email & password
+ *     description: Logs in using Passport local strategy and returns JWT tokens
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginInput'
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     accessToken:
+ *                       $ref: '#/components/schemas/AuthTokens/properties/accessToken'
+ *                     refreshToken:
+ *                       $ref: '#/components/schemas/AuthTokens/properties/refreshToken'
+ *                   required: [user, accessToken, refreshToken]
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       401:
+ *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/login', authRateLimiter, validate(loginSchema), login);
+
+/**
+ * @openapi
+ * /auth/refresh:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Refresh access token
+ *     description: Exchanges a valid refresh token for a new set of JWT tokens
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RefreshInput'
+ *     responses:
+ *       200:
+ *         description: Tokens refreshed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     accessToken:
+ *                       $ref: '#/components/schemas/AuthTokens/properties/accessToken'
+ *                     refreshToken:
+ *                       $ref: '#/components/schemas/AuthTokens/properties/refreshToken'
+ *                   required: [user, accessToken, refreshToken]
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       401:
+ *         description: Invalid or expired refresh token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/refresh', authRateLimiter, validate(refreshSchema), refresh);
+
+/**
+ * @openapi
+ * /auth/logout:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Logout and invalidate refresh token
+ *     description: Invalidates the provided refresh token so it cannot be used again
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LogoutInput'
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: null
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ */
+router.post('/logout', authRateLimiter, logout);
+
+/**
+ * @openapi
+ * /auth/forgot-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Request password reset OTP
+ *     description: Sends a password reset OTP to the user's email if an account exists
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ForgotPasswordInput'
+ *     responses:
+ *       200:
+ *         description: Reset OTP sent (or no-op if email doesn't exist)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: null
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       429:
+ *         description: Too many requests
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/forgot-password', authRateLimiter, validate(forgotPasswordSchema), forgotPassword);
+
+/**
+ * @openapi
+ * /auth/verify-reset-otp:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Verify password reset OTP
+ *     description: Validates the OTP and returns a temporary reset token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VerifyResetOtpInput'
+ *     responses:
+ *       200:
+ *         description: OTP verified, reset token returned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     resetToken:
+ *                       type: string
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: OTP not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       410:
+ *         description: OTP expired or already used
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/verify-reset-otp', otpRateLimiter, validate(verifyResetOtpSchema), verifyResetOtp);
+
+/**
+ * @openapi
+ * /auth/reset-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Reset password with verification token
+ *     description: Validates the temporary reset token and sets a new password. Invalidates all existing sessions.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ResetPasswordInput'
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: null
+ *                 meta:
+ *                   $ref: '#/components/schemas/ErrorResponse/properties/meta'
+ *       400:
+ *         description: Validation error or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Invalid or expired reset token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/reset-password', authRateLimiter, validate(resetPasswordSchema), resetPassword);
+
+/**
+ * @openapi
+ * /auth/google:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Initiate Google OAuth sign-in
+ *     description: Redirects the user to Google's OAuth consent screen. After successful authentication, the user is redirected to the configured MOBILE_DEEP_LINK with accessToken, refreshToken, userId, email, and fullName as query parameters.
+ *     responses:
+ *       302:
+ *         description: Redirect to Google OAuth consent screen
+ *       401:
+ *         description: OAuth configuration missing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get('/google', googleAuth);
+
+/**
+ * @openapi
+ * /auth/google/callback:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Google OAuth callback
+ *     description: Handles the OAuth callback from Google. On success, redirects to the configured MOBILE_DEEP_LINK with accessToken, refreshToken, userId, email, and fullName as query parameters. On failure, redirects with an error parameter.
+ *     responses:
+ *       302:
+ *         description: Redirect to mobile deep link with tokens or error
+ */
+router.get('/google/callback', googleCallback);
+
+/**
+ * @openapi
+ * /auth/apple:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Initiate Apple OAuth sign-in
+ *     description: Redirects the user to Apple's OAuth consent screen. After successful authentication, the user is redirected to the configured MOBILE_DEEP_LINK with accessToken, refreshToken, userId, email, and fullName as query parameters.
+ *     responses:
+ *       302:
+ *         description: Redirect to Apple OAuth consent screen
+ *       401:
+ *         description: OAuth configuration missing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get('/apple', appleAuth);
+
+/**
+ * @openapi
+ * /auth/apple/callback:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Apple OAuth callback
+ *     description: Handles the OAuth callback from Apple. On success, redirects to the configured MOBILE_DEEP_LINK with accessToken, refreshToken, userId, email, and fullName as query parameters. On failure, redirects with an error parameter.
+ *     responses:
+ *       302:
+ *         description: Redirect to mobile deep link with tokens or error
+ */
+router.get('/apple/callback', appleCallback);
+
+export default router;

@@ -231,37 +231,17 @@ function handleOAuthCallback(strategy: string, req: Request, res: Response, next
 
     if (!user) {
       const message = info?.message ?? 'OAuth authentication failed';
-      if (env.NODE_ENV === 'development') {
-        return renderOAuthError(res, message);
-      }
-      const url = new URL(env.MOBILE_DEEP_LINK);
-      url.searchParams.set('error', message);
-      return res.redirect(url.toString());
+      return renderOAuthError(res, message);
     }
 
     try {
       const passportUser = user as User;
       const tokens = await authService.generateTokenPair(passportUser);
 
-      if (env.NODE_ENV === 'development') {
-        return renderOAuthSuccess(res, tokens, passportUser);
-      }
-
-      const url = new URL(env.MOBILE_DEEP_LINK);
-      url.searchParams.set('accessToken', tokens.accessToken);
-      url.searchParams.set('refreshToken', tokens.refreshToken);
-      url.searchParams.set('userId', passportUser.id);
-      url.searchParams.set('email', passportUser.email.getValue());
-      url.searchParams.set('fullName', passportUser.fullName);
-      res.redirect(url.toString());
+      return renderOAuthSuccess(res, tokens, passportUser);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'OAuth authentication failed';
-      if (env.NODE_ENV === 'development') {
-        return renderOAuthError(res, message);
-      }
-      const url = new URL(env.MOBILE_DEEP_LINK);
-      url.searchParams.set('error', message);
-      res.redirect(url.toString());
+      return renderOAuthError(res, message);
     }
   })(req, res, next);
 }

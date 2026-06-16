@@ -16,6 +16,7 @@ interface UserRow {
   full_name: string;
   email: string;
   password_hash: string;
+  provider_id: string | null;
   auth_provider: string;
   account_status: string;
   role: string;
@@ -35,6 +36,7 @@ function rowToUser(row: UserRow): User {
     fullName: row.full_name,
     email: Email.create(row.email),
     passwordHash: PasswordHash.create(row.password_hash),
+    providerId: row.provider_id ?? undefined,
     accountStatus: accountStatusFromString(row.account_status),
     authProvider: authProviderFromString(row.auth_provider),
     emailVerified: row.email_verified,
@@ -55,6 +57,7 @@ function userToRow(user: User): Omit<UserRow, 'id' | 'created_at' | 'updated_at'
     full_name: user.fullName,
     email: user.email.getValue(),
     password_hash: user.passwordHash.getValue(),
+    provider_id: user.providerId ?? null,
     auth_provider: user.authProvider,
     account_status: user.accountStatus,
     email_verified: user.emailVerified,
@@ -72,6 +75,18 @@ export class UserRepository {
 
   constructor(db?: Knex) {
     this.db = db ?? getDb();
+  }
+
+  async findByProviderId(providerId: string): Promise<User | null> {
+    const row = await this.db<UserRow>('users')
+      .where({ provider_id: providerId })
+      .whereNull('deleted_at')
+      .first();
+
+    if (!row) {
+      return null;
+    }
+    return rowToUser(row);
   }
 
   async findByEmail(email: string): Promise<User | null> {

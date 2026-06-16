@@ -104,7 +104,7 @@ const swaggerDefinition = {
         type: 'object',
         required: ['token'],
         properties: {
-          token: { type: 'string', description: 'Email verification token from email link' },
+          token: { type: 'string', description: '6-digit verification code sent to email', pattern: '^\\d{6}$' },
         },
       },
       ResendVerificationInput: {
@@ -118,14 +118,41 @@ const swaggerDefinition = {
         type: 'object',
         required: ['email'],
         properties: {
-          email: { type: 'string', format: 'email', example: 'shelterfaithapps@gmail.com', description: 'Email address for password reset' },
+          email: { type: 'string', format: 'email', example: 'shelterfaithapps@gmail.com', description: 'Email address to receive password reset OTP' },
+        },
+      },
+      VerifyResetOtpInput: {
+        type: 'object',
+        required: ['email', 'otp'],
+        properties: {
+          email: { type: 'string', format: 'email', example: 'shelterfaithapps@gmail.com', description: 'Email address' },
+          otp: { type: 'string', description: '6-digit OTP from email', pattern: '^\\d{6}$' },
+        },
+      },
+      VerifyResetOtpResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          data: {
+            type: 'object',
+            properties: {
+              resetToken: { type: 'string', description: 'Temporary JWT token for password reset (expires in 5 minutes)' },
+            },
+          },
+          meta: {
+            type: 'object',
+            properties: {
+              requestId: { type: 'string', format: 'uuid' },
+              timestamp: { type: 'string', format: 'date-time' },
+            },
+          },
         },
       },
       ResetPasswordInput: {
         type: 'object',
-        required: ['token', 'password'],
+        required: ['resetToken', 'password'],
         properties: {
-          token: { type: 'string', description: 'Password reset token from email link' },
+          resetToken: { type: 'string', description: 'Temporary reset token from verify-reset-otp endpoint' },
           password: { type: 'string', minLength: 8, maxLength: 128, example: 'newSecurePass123', description: 'New password (min 8 characters)' },
         },
       },

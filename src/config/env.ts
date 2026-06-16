@@ -61,6 +61,21 @@ const envSchema = z.object({
     .transform((v) => v === 'true' || v === '1')
     .default('true'),
 
+  // ─── OAuth (Google) ──────────────────────────────────
+  GOOGLE_CLIENT_ID: z.string().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
+  GOOGLE_CALLBACK_URL: z.string().default(''),
+
+  // ─── OAuth (Apple) ───────────────────────────────────
+  APPLE_CLIENT_ID: z.string().default(''),
+  APPLE_TEAM_ID: z.string().default(''),
+  APPLE_KEY_ID: z.string().default(''),
+  APPLE_PRIVATE_KEY: z.string().default(''),
+  APPLE_CALLBACK_URL: z.string().default(''),
+
+  // ─── Mobile Deep Link ────────────────────────────────
+  MOBILE_DEEP_LINK: z.string().default('myapp-dev://auth/callback'),
+
   // ─── Logging ─────────────────────────────────────────
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])

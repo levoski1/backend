@@ -29,6 +29,7 @@ const mockVerificationTokenRepoMethods: Record<string, jest.Mock | undefined> = 
 const mockPasswordResetTokenRepoMethods: Record<string, jest.Mock | undefined> = {
   create: jest.fn(),
   findByTokenHash: jest.fn(),
+  findByOtp: jest.fn(),
   markAsUsed: jest.fn(),
   invalidateForUser: jest.fn(),
 };
@@ -100,6 +101,11 @@ describe('AuthController', () => {
     mockVerificationTokenRepoMethods.findByToken = jest.fn();
     mockVerificationTokenRepoMethods.markAsUsed = jest.fn();
     mockVerificationTokenRepoMethods.invalidateForUser = jest.fn();
+    mockPasswordResetTokenRepoMethods.create = jest.fn();
+    mockPasswordResetTokenRepoMethods.findByTokenHash = jest.fn();
+    mockPasswordResetTokenRepoMethods.findByOtp = jest.fn();
+    mockPasswordResetTokenRepoMethods.markAsUsed = jest.fn();
+    mockPasswordResetTokenRepoMethods.invalidateForUser = jest.fn();
   });
 
   describe('POST /api/v1/auth/register', () => {
@@ -390,11 +396,11 @@ describe('AuthController', () => {
   });
 
   describe('POST /api/v1/auth/verify-email', () => {
-    it('should verify email with valid token', async () => {
+    it('should verify email with valid OTP', async () => {
       const tokenRecord = {
         id: 'token-id',
         user_id: validUser.id,
-        token: 'valid-token',
+        token: '123456',
         expires_at: new Date(Date.now() + 3600000),
         used_at: null,
         created_at: new Date(),
@@ -404,7 +410,7 @@ describe('AuthController', () => {
 
       const response = await request(app)
         .post('/api/v1/auth/verify-email')
-        .send({ token: 'valid-token' });
+        .send({ token: '123456' });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -421,6 +427,15 @@ describe('AuthController', () => {
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
+    it('should return 400 for non-6-digit token', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/verify-email')
+        .send({ token: 'abc' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
     it('should return 400 for empty token', async () => {
       const response = await request(app)
         .post('/api/v1/auth/verify-email')
@@ -428,48 +443,6 @@ describe('AuthController', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-    });
-  });
-
-  describe('GET /api/v1/auth/verify-email', () => {
-    it('should return 400 HTML when token is missing', async () => {
-      const response = await request(app)
-        .get('/api/v1/auth/verify-email');
-
-      expect(response.status).toBe(400);
-      expect(response.text).toContain('Invalid verification link');
-      expect(response.headers['content-type']).toMatch(/html/);
-    });
-
-    it('should return 200 HTML when verification succeeds', async () => {
-      const tokenRecord = {
-        id: 'token-id',
-        user_id: validUser.id,
-        token: 'valid-token',
-        expires_at: new Date(Date.now() + 3600000),
-        used_at: null,
-        created_at: new Date(),
-      };
-      mockVerificationTokenRepoMethods.findByToken!.mockResolvedValue(tokenRecord);
-      mockUserRepoMethods.findById!.mockResolvedValue(validUser);
-
-      const response = await request(app)
-        .get('/api/v1/auth/verify-email')
-        .query({ token: 'valid-token' });
-
-      expect(response.status).toBe(200);
-      expect(response.text).toContain('Email verified');
-    });
-
-    it('should return 400 HTML when verification fails', async () => {
-      mockVerificationTokenRepoMethods.findByToken!.mockResolvedValue(null);
-
-      const response = await request(app)
-        .get('/api/v1/auth/verify-email')
-        .query({ token: 'invalid-token' });
-
-      expect(response.status).toBe(400);
-      expect(response.text).toContain('Verification failed');
     });
   });
 
@@ -537,29 +510,76 @@ describe('AuthController', () => {
     });
   });
 
-  describe('POST /api/v1/auth/reset-password', () => {
-    it('should return 200 with valid token and password', async () => {
-      const tokenRecord = {
-        id: 'token-id',
+  describe('POST /api/v1/auth/verify-reset-otp', () => {
+    it('should return 200 with reset token for valid OTP', async () => {
+      mockUserRepoMethods.findByEmail!.mockResolvedValue(validUser);
+      mockPasswordResetTokenRepoMethods.findByOtp!.mockResolvedValue({
+        id: 'otp-id',
         user_id: validUser.id,
-        token_hash: 'hashed-token',
-        expires_at: new Date(Date.now() + 3600000),
+        token_hash: '123456',
+        expires_at: new Date(Date.now() + 60000),
         used_at: null,
         created_at: new Date(),
-      };
-      mockPasswordResetTokenRepoMethods.findByTokenHash!.mockResolvedValue(tokenRecord);
+      });
+
+      const response = await request(app)
+        .post('/api/v1/auth/verify-reset-otp')
+        .send({ email: 'john@example.com', otp: '123456' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.resetToken).toBeDefined();
+    });
+
+    it('should return 400 for missing email', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/verify-reset-otp')
+        .send({ otp: '123456' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for missing otp', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/verify-reset-otp')
+        .send({ email: 'john@example.com' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 400 for non-6-digit otp', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/verify-reset-otp')
+        .send({ email: 'john@example.com', otp: 'abc' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('POST /api/v1/auth/reset-password', () => {
+    beforeEach(() => {
+      const jwtVerify = jwt.verify as jest.Mock;
+      jwtVerify.mockReturnValue({ sub: validUser.id, purpose: 'password-reset' });
+    });
+
+    it('should return 200 with valid reset token and password', async () => {
       mockUserRepoMethods.findById!.mockResolvedValue(validUser);
       mockBcryptHash.mockResolvedValue('$2b$12$newhashedpassword');
 
       const response = await request(app)
         .post('/api/v1/auth/reset-password')
-        .send({ token: 'valid-token', password: 'newPassword123' });
+        .send({ resetToken: 'valid-reset-token', password: 'newPassword123' });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
     });
 
-    it('should return 400 for missing token', async () => {
+    it('should return 400 for missing resetToken', async () => {
       const response = await request(app)
         .post('/api/v1/auth/reset-password')
         .send({ password: 'newPassword123' });
@@ -572,7 +592,7 @@ describe('AuthController', () => {
     it('should return 400 for missing password', async () => {
       const response = await request(app)
         .post('/api/v1/auth/reset-password')
-        .send({ token: 'some-token' });
+        .send({ resetToken: 'some-token' });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
@@ -582,32 +602,11 @@ describe('AuthController', () => {
     it('should return 400 for short password', async () => {
       const response = await request(app)
         .post('/api/v1/auth/reset-password')
-        .send({ token: 'some-token', password: 'short' });
+        .send({ resetToken: 'some-token', password: 'short' });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
-    });
-  });
-
-  describe('GET /api/v1/auth/reset-password', () => {
-    it('should return 400 HTML when token is missing', async () => {
-      const response = await request(app)
-        .get('/api/v1/auth/reset-password');
-
-      expect(response.status).toBe(400);
-      expect(response.text).toContain('Invalid reset link');
-      expect(response.headers['content-type']).toMatch(/html/);
-    });
-
-    it('should return 200 HTML with form when token is present', async () => {
-      const response = await request(app)
-        .get('/api/v1/auth/reset-password')
-        .query({ token: 'valid-token' });
-
-      expect(response.status).toBe(200);
-      expect(response.text).toContain('Reset your password');
-      expect(response.text).toContain('valid-token');
     });
   });
 });

@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-namespace */
-import type { Request, Response } from 'express';
+
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination?: string;
+  filename?: string;
+  path?: string;
+  buffer: Buffer;
+}
 
 declare module 'multer' {
-  interface MulterFile {
-    fieldname: string;
-    originalname: string;
-    encoding: string;
-    mimetype: string;
-    size: number;
-    destination?: string;
-    filename?: string;
-    path?: string;
-    buffer: Buffer;
-  }
+  import type { Request, Response } from 'express';
 
   interface Options {
     dest?: string;

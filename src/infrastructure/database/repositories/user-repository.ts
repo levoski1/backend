@@ -43,6 +43,7 @@ function rowToUser(row: UserRow): User {
     privacySettings: new PrivacySettings({
       profileVisibility: (row.privacy_settings?.profileVisibility as 'public' | 'private') ?? 'public',
       showFaithInfo: (row.privacy_settings?.showFaithInfo as boolean) ?? true,
+      anonymousPosting: (row.privacy_settings?.anonymousPosting as boolean) ?? false,
     }),
     role: row.role as 'user' | 'admin' | 'moderator' | undefined,
     createdAt: new Date(row.created_at),
@@ -66,6 +67,7 @@ function userToRow(user: User): Omit<UserRow, 'id' | 'created_at' | 'updated_at'
     privacy_settings: {
       profileVisibility: user.privacySettings.profileVisibility,
       showFaithInfo: user.privacySettings.showFaithInfo,
+      anonymousPosting: user.privacySettings.anonymousPosting,
     },
   };
 }

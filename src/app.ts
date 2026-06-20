@@ -13,6 +13,11 @@ import { requestTimeout } from './interfaces/http/middleware/timeout.js';
 import { pingDb } from './infrastructure/database/connection.js';
 import { swaggerSpec } from './interfaces/http/swagger/index.js';
 import authRouter from './interfaces/http/routes/auth-routes.js';
+import profileRouter from './interfaces/http/routes/profile-routes.js';
+import feedRouter from './interfaces/http/routes/feed-routes.js';
+import devotionalRouter from './interfaces/http/routes/devotional-routes.js';
+import adminDevotionalRouter from './interfaces/http/routes/admin-devotional-routes.js';
+import streakRouter from './interfaces/http/routes/streak-routes.js';
 
 const app = express();
 
@@ -77,8 +82,11 @@ app.get('/docs.json', (_req, res) => res.json(swaggerSpec));
 
 // ─── Routes ─────────────────────────────────────────────
 app.use(`${env.API_PREFIX}/auth`, authRouter);
-// app.use(`${env.API_PREFIX}/profiles`, profileRouter);
-// app.use(`${env.API_PREFIX}/feed`, feedRouter);
+app.use(`${env.API_PREFIX}/profile`, profileRouter);
+app.use(`${env.API_PREFIX}/posts`, feedRouter);
+app.use(`${env.API_PREFIX}/devotionals`, devotionalRouter);
+app.use(`${env.API_PREFIX}/admin/devotionals`, adminDevotionalRouter);
+app.use(`${env.API_PREFIX}/streaks`, streakRouter);
 
 // ─── Error Handling ─────────────────────────────────────
 app.use(ErrorHandler.handle);

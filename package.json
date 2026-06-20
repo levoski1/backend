@@ -75,14 +75,14 @@
     "response-time": "^2.3.4",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
-    "@types/multer": "^2.1.0",
-    "@types/ws": "^8.18.1",
     "ws": "^8.21.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
+    "@types/multer": "^2.1.0",
     "@types/supertest": "^6.0.2",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",
     "eslint": "^8.57.0",

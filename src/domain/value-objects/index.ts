@@ -7,3 +7,5 @@ export { FaithProfile } from './faith-profile.js';
 export type { FaithProfileParams } from './faith-profile.js';
 export { PrivacySettings } from './privacy-settings.js';
 export type { PrivacySettingsParams } from './privacy-settings.js';
+export { PostType, postTypeFromString } from './post-type.js';
+export { ReactionType, reactionTypeFromString } from './reaction-type.js';

@@ -17,6 +17,17 @@ const commonConfig: Knex.Config = {
   pool: {
     min: env.DB_POOL_MIN,
     max: env.DB_POOL_MAX,
+    // Kill idle connections after 30s — Supabase drops them at ~5min
+    idleTimeoutMillis: 30_000,
+    // Check for and reap stale connections every 15s
+    reapIntervalMillis: 15_000,
+    // Ping the connection before handing it out to catch dropped ones
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    afterCreate(conn: any, done: (err: Error | null, conn: unknown) => void) {
+      conn.query('SELECT 1', (err: Error | null) => {
+        done(err, conn);
+      });
+    },
   },
   acquireConnectionTimeout: 10_000,
 };

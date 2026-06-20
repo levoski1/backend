@@ -73,8 +73,14 @@ const envSchema = z.object({
   APPLE_PRIVATE_KEY: z.string().default(''),
   APPLE_CALLBACK_URL: z.string().default(''),
 
+  // ─── Supabase ─────────────────────────────────────────
+  SUPABASE_URL: z.string().default(''),
+  SUPABASE_SERVICE_KEY: z.string().default(''),
+  SUPABASE_STORAGE_BUCKET: z.string().default('profile-photos'),
+  MAX_PHOTO_SIZE_BYTES: z.coerce.number().positive().default(5 * 1024 * 1024),
+
   // ─── Mobile Deep Link ────────────────────────────────
-  MOBILE_DEEP_LINK: z.string().default('myapp-dev://auth/callback'),
+  MOBILE_DEEP_LINK: z.string().default('shelter://auth/callback'),
 
   // ─── Logging ─────────────────────────────────────────
   LOG_LEVEL: z

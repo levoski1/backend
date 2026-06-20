@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../../../shared/errors/AppError.js';
 import { logger } from '../../../shared/logging/logger.js';
+import { env } from '../../../config/env.js';
 
 export class ErrorHandler {
   static handle(err: Error, req: Request, res: Response, _next: NextFunction): void {
@@ -42,7 +43,7 @@ export class ErrorHandler {
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'Internal server error',
+        message: env.NODE_ENV === 'development' ? err.message : 'Internal server error',
       },
       meta: {
         requestId: req.requestId,

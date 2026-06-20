@@ -53,3 +53,7 @@ Desktop.ini
 docs/
 LEVI_TEST/
 text.md
+
+# ─── Orphaned legacy project files ────────────────────────
+backend/
+assetDecimalNormalizer.test.js

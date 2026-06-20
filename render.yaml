@@ -41,7 +41,7 @@ services:
       - key: GOOGLE_CALLBACK_URL
         value: https://shelter-api.onrender.com/api/v1/auth/google/callback
       - key: MOBILE_DEEP_LINK
-        value: myapp://auth/callback
+        value: shelter://auth/callback
 
   - type: redis
     name: shelter-redis

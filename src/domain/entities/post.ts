@@ -7,6 +7,8 @@ export interface PostParams {
   content: string;
   isAnonymous: boolean;
   postType: PostType;
+  isUrgent: boolean;
+  allowComments: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +26,8 @@ export class Post {
   public readonly content: string;
   public readonly isAnonymous: boolean;
   public readonly postType: PostType;
+  public readonly isUrgent: boolean;
+  public readonly allowComments: boolean;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
 
@@ -37,6 +41,8 @@ export class Post {
     this.content = params.content.trim();
     this.isAnonymous = params.isAnonymous;
     this.postType = params.postType;
+    this.isUrgent = params.isUrgent;
+    this.allowComments = params.allowComments;
     this.createdAt = params.createdAt;
     this.updatedAt = params.updatedAt;
   }
@@ -69,6 +75,8 @@ export class Post {
       content: this.content,
       isAnonymous: this.isAnonymous,
       postType: this.postType,
+      isUrgent: this.isUrgent,
+      allowComments: this.allowComments,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

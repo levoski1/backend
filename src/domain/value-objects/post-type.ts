@@ -1,20 +1,20 @@
 export enum PostType {
-  GENERAL = 'general',
-  PRAYER_REQUEST = 'prayer_request',
-  DEVOTIONAL_SHARE = 'devotional_share',
-  SCRIPTURE = 'scripture',
+  PRAYER = 'prayer',
+  ADVICE = 'advice',
+  TESTIMONY = 'testimony',
+  GRATITUDE = 'gratitude',
 }
 
 export function postTypeFromString(value: string): PostType {
   switch (value) {
-    case 'general':
-      return PostType.GENERAL;
-    case 'prayer_request':
-      return PostType.PRAYER_REQUEST;
-    case 'devotional_share':
-      return PostType.DEVOTIONAL_SHARE;
-    case 'scripture':
-      return PostType.SCRIPTURE;
+    case 'prayer':
+      return PostType.PRAYER;
+    case 'advice':
+      return PostType.ADVICE;
+    case 'testimony':
+      return PostType.TESTIMONY;
+    case 'gratitude':
+      return PostType.GRATITUDE;
     default:
       throw new Error(`Invalid post type: ${value}`);
   }

@@ -35,7 +35,7 @@ const router = Router();
  *   post:
  *     tags: [Feed]
  *     summary: Create a new post
- *     description: Creates a new community feed post. Posts can be anonymous and of various types (general, prayer_request, devotional_share, scripture).
+ *     description: Creates a new community feed post. Posts can be anonymous and of various types (prayer, advice, testimony, gratitude).
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -108,7 +108,7 @@ router.post('/', authenticate, validate(createPostSchema), createPost);
  *         name: type
  *         schema:
  *           type: string
- *           enum: [general, prayer_request, devotional_share, scripture]
+ *           enum: [prayer, advice, testimony, gratitude]
  *         description: Filter by post type
  *     responses:
  *       200:

@@ -6,7 +6,9 @@ function makeValidPostParams(overrides: Record<string, unknown> = {}) {
     userId: '223e4567-e89b-12d3-a456-426614174001',
     content: 'This is a test post content for the community feed.',
     isAnonymous: false,
-    postType: PostType.GENERAL,
+    isUrgent: false,
+    allowComments: true,
+    postType: PostType.PRAYER,
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
     ...overrides,
@@ -22,7 +24,9 @@ describe('Post Entity', () => {
       expect(post.userId).toBe(params.userId);
       expect(post.content).toBe('This is a test post content for the community feed.');
       expect(post.isAnonymous).toBe(false);
-      expect(post.postType).toBe(PostType.GENERAL);
+      expect(post.isUrgent).toBe(false);
+      expect(post.allowComments).toBe(true);
+      expect(post.postType).toBe(PostType.PRAYER);
       expect(post.createdAt).toEqual(new Date('2026-01-01'));
       expect(post.updatedAt).toEqual(new Date('2026-01-01'));
     });
@@ -33,22 +37,28 @@ describe('Post Entity', () => {
       expect(post.isAnonymous).toBe(true);
     });
 
-    it('should create a prayer request post', () => {
-      const params = makeValidPostParams({ postType: PostType.PRAYER_REQUEST });
+    it('should create a prayer post', () => {
+      const params = makeValidPostParams({ postType: PostType.PRAYER });
       const post = new Post(params);
-      expect(post.postType).toBe(PostType.PRAYER_REQUEST);
+      expect(post.postType).toBe(PostType.PRAYER);
     });
 
-    it('should create a devotional share post', () => {
-      const params = makeValidPostParams({ postType: PostType.DEVOTIONAL_SHARE });
+    it('should create an advice post', () => {
+      const params = makeValidPostParams({ postType: PostType.ADVICE });
       const post = new Post(params);
-      expect(post.postType).toBe(PostType.DEVOTIONAL_SHARE);
+      expect(post.postType).toBe(PostType.ADVICE);
     });
 
-    it('should create a scripture post', () => {
-      const params = makeValidPostParams({ postType: PostType.SCRIPTURE });
+    it('should create a testimony post', () => {
+      const params = makeValidPostParams({ postType: PostType.TESTIMONY });
       const post = new Post(params);
-      expect(post.postType).toBe(PostType.SCRIPTURE);
+      expect(post.postType).toBe(PostType.TESTIMONY);
+    });
+
+    it('should create a gratitude post', () => {
+      const params = makeValidPostParams({ postType: PostType.GRATITUDE });
+      const post = new Post(params);
+      expect(post.postType).toBe(PostType.GRATITUDE);
     });
 
     it('should reject invalid UUID for id', () => {
@@ -105,7 +115,9 @@ describe('Post Entity', () => {
         userId: '223e4567-e89b-12d3-a456-426614174001',
         content: 'Test content',
         isAnonymous: false,
-        postType: PostType.GENERAL,
+        isUrgent: false,
+        allowComments: true,
+        postType: PostType.PRAYER,
       });
 
       expect(post.id).toBe('123e4567-e89b-12d3-a456-426614174000');
@@ -135,6 +147,8 @@ describe('Post Entity', () => {
       expect(updated.id).toBe(post.id);
       expect(updated.userId).toBe(post.userId);
       expect(updated.isAnonymous).toBe(post.isAnonymous);
+      expect(updated.isUrgent).toBe(post.isUrgent);
+      expect(updated.allowComments).toBe(post.allowComments);
       expect(updated.postType).toBe(post.postType);
     });
   });
@@ -160,6 +174,8 @@ describe('Post Entity', () => {
       expect(result.userId).toBe(params.userId);
       expect(result.content).toBe(params.content);
       expect(result.isAnonymous).toBe(params.isAnonymous);
+      expect(result.isUrgent).toBe(params.isUrgent);
+      expect(result.allowComments).toBe(params.allowComments);
       expect(result.postType).toBe(params.postType);
       expect(result.createdAt).toEqual(params.createdAt);
       expect(result.updatedAt).toEqual(params.updatedAt);
@@ -168,20 +184,20 @@ describe('Post Entity', () => {
 });
 
 describe('postTypeFromString', () => {
-  it('should return PostType.GENERAL for "general"', () => {
-    expect(postTypeFromString('general')).toBe(PostType.GENERAL);
+  it('should return PostType.PRAYER for "prayer"', () => {
+    expect(postTypeFromString('prayer')).toBe(PostType.PRAYER);
   });
 
-  it('should return PostType.PRAYER_REQUEST for "prayer_request"', () => {
-    expect(postTypeFromString('prayer_request')).toBe(PostType.PRAYER_REQUEST);
+  it('should return PostType.ADVICE for "advice"', () => {
+    expect(postTypeFromString('advice')).toBe(PostType.ADVICE);
   });
 
-  it('should return PostType.DEVOTIONAL_SHARE for "devotional_share"', () => {
-    expect(postTypeFromString('devotional_share')).toBe(PostType.DEVOTIONAL_SHARE);
+  it('should return PostType.TESTIMONY for "testimony"', () => {
+    expect(postTypeFromString('testimony')).toBe(PostType.TESTIMONY);
   });
 
-  it('should return PostType.SCRIPTURE for "scripture"', () => {
-    expect(postTypeFromString('scripture')).toBe(PostType.SCRIPTURE);
+  it('should return PostType.GRATITUDE for "gratitude"', () => {
+    expect(postTypeFromString('gratitude')).toBe(PostType.GRATITUDE);
   });
 
   it('should throw for invalid type', () => {

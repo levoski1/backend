@@ -20,7 +20,9 @@ const validPost = new Post({
   userId: '223e4567-e89b-12d3-a456-426614174001',
   content: 'Test post content',
   isAnonymous: false,
-  postType: PostType.GENERAL,
+  isUrgent: false,
+  allowComments: true,
+  postType: PostType.PRAYER,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
 });

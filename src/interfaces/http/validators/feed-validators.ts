@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const postTypeEnum = z.enum(['general', 'prayer_request', 'devotional_share', 'scripture']);
+export const postTypeEnum = z.enum(['prayer', 'advice', 'testimony', 'gratitude']);
 
 export const createPostSchema = z.object({
   content: z
@@ -8,9 +8,17 @@ export const createPostSchema = z.object({
     .trim()
     .min(1, 'Content must be at least 1 character')
     .max(5000, 'Content must not exceed 5000 characters'),
+  postType: postTypeEnum,
   isAnonymous: z.boolean().optional().default(false),
-  postType: postTypeEnum.optional().default('general'),
-});
+  allowComments: z.boolean().optional().default(true),
+  isUrgent: z.boolean().optional(),
+}).refine(
+  (data) => data.postType === 'prayer' || data.isUrgent === undefined,
+  {
+    message: 'isUrgent is only allowed for prayer posts',
+    path: ['isUrgent'],
+  },
+);
 
 export const updatePostSchema = z.object({
   content: z

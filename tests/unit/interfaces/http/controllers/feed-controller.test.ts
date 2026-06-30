@@ -54,7 +54,9 @@ const validPost = new Post({
   userId: validUserId,
   content: 'Test post content',
   isAnonymous: false,
-  postType: PostType.GENERAL,
+  isUrgent: false,
+  allowComments: true,
+  postType: PostType.PRAYER,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
 });
@@ -106,7 +108,7 @@ describe('FeedController', () => {
       const response = await request(app)
         .post('/api/v1/posts')
         .set('Authorization', 'Bearer valid-token')
-        .send({ content: 'Test post content' });
+        .send({ content: 'Test post content', postType: 'prayer' });
 
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);

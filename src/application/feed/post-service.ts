@@ -7,7 +7,9 @@ export interface CreatePostParams {
   userId: string;
   content: string;
   isAnonymous?: boolean;
-  postType?: PostType;
+  allowComments?: boolean;
+  isUrgent?: boolean;
+  postType: PostType;
 }
 
 export interface UpdatePostParams {
@@ -32,7 +34,9 @@ export class PostService {
       userId: params.userId,
       content: params.content,
       isAnonymous: params.isAnonymous ?? false,
-      postType: params.postType ?? PostType.GENERAL,
+      isUrgent: params.isUrgent ?? false,
+      allowComments: params.allowComments ?? true,
+      postType: params.postType,
     });
 
     const created = await this.postRepo.create(post);
@@ -51,6 +55,8 @@ export class PostService {
       userId: result.post.userId,
       content: result.post.content,
       isAnonymous: result.post.isAnonymous,
+      isUrgent: result.post.isUrgent,
+      allowComments: result.post.allowComments,
       postType: result.post.postType,
       authorDisplayName: displayName,
       authorAvatarUrl: result.post.isAnonymous ? null : (result.authorAvatarUrl ?? null),
@@ -76,6 +82,8 @@ export class PostService {
         userId: item.post.userId,
         content: item.post.content,
         isAnonymous: item.post.isAnonymous,
+        isUrgent: item.post.isUrgent,
+        allowComments: item.post.allowComments,
         postType: item.post.postType,
         authorDisplayName: displayName,
         authorAvatarUrl: item.post.isAnonymous ? null : (item.authorAvatarUrl ?? null),
@@ -111,6 +119,8 @@ export class PostService {
       userId: result.post.userId,
       content: result.post.content,
       isAnonymous: result.post.isAnonymous,
+      isUrgent: result.post.isUrgent,
+      allowComments: result.post.allowComments,
       postType: result.post.postType,
       authorDisplayName: displayName,
       authorAvatarUrl: result.post.isAnonymous ? null : (result.authorAvatarUrl ?? null),

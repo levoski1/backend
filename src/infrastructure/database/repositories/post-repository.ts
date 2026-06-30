@@ -10,6 +10,8 @@ interface PostRow {
   content: string;
   is_anonymous: boolean;
   post_type: string;
+  is_urgent: boolean;
+  allow_comments: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +30,8 @@ function rowToPost(row: PostRow): Post {
     content: row.content,
     isAnonymous: row.is_anonymous,
     postType: postTypeFromString(row.post_type),
+    isUrgent: row.is_urgent,
+    allowComments: row.allow_comments,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   });
@@ -39,6 +43,8 @@ function postToRow(post: Post): Omit<PostRow, 'id' | 'created_at' | 'updated_at'
     content: post.content,
     is_anonymous: post.isAnonymous,
     post_type: post.postType,
+    is_urgent: post.isUrgent,
+    allow_comments: post.allowComments,
   };
 }
 

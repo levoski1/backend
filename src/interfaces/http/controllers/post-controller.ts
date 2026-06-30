@@ -2,21 +2,23 @@ import type { Request, Response } from 'express';
 import { PostService } from '../../../application/feed/post-service.js';
 import { asyncHandler } from '../../../shared/utils/index.js';
 import type { AuthenticatedRequest } from '../middleware/authenticate.js';
-import { PostType, postTypeFromString } from '../../../domain/index.js';
+import { postTypeFromString } from '../../../domain/index.js';
 
 const postService = new PostService();
 
 export const createPost = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const userId = authReq.user.id;
-  const { content, isAnonymous, postType: postTypeStr } = req.body;
+  const { content, isAnonymous, allowComments, isUrgent, postType: postTypeStr } = req.body;
 
-  const postType = postTypeStr ? postTypeFromString(postTypeStr) : PostType.GENERAL;
+  const postType = postTypeFromString(postTypeStr);
 
   const post = await postService.createPost({
     userId,
     content,
     isAnonymous,
+    allowComments,
+    isUrgent,
     postType,
   });
 

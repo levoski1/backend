@@ -227,7 +227,9 @@ const swaggerDefinition = {
           userId: { type: 'string', format: 'uuid', description: 'Author user UUID' },
           content: { type: 'string', description: 'Post content (max 5000 chars)' },
           isAnonymous: { type: 'boolean', description: 'Whether the post is anonymous' },
-          postType: { type: 'string', enum: ['general', 'prayer_request', 'devotional_share', 'scripture'], description: 'Type of post' },
+          isUrgent: { type: 'boolean', description: 'Whether the post is urgent (prayer posts only)' },
+          allowComments: { type: 'boolean', description: 'Whether comments are allowed' },
+          postType: { type: 'string', enum: ['prayer', 'advice', 'testimony', 'gratitude'], description: 'Type of post' },
           authorDisplayName: { type: 'string', description: "Display name (returns 'A Shelter Member' for anonymous)" },
           authorAvatarUrl: { type: 'string', format: 'uri', nullable: true, description: 'Author avatar URL (null for anonymous)' },
           commentCount: { type: 'integer', description: 'Total comment count' },
@@ -246,11 +248,13 @@ const swaggerDefinition = {
       },
       CreatePostInput: {
         type: 'object',
-        required: ['content'],
+        required: ['content', 'postType'],
         properties: {
           content: { type: 'string', minLength: 1, maxLength: 5000, description: 'Post content (1-5000 chars)' },
           isAnonymous: { type: 'boolean', default: false, description: 'Post anonymously' },
-          postType: { type: 'string', enum: ['general', 'prayer_request', 'devotional_share', 'scripture'], default: 'general', description: 'Type of post' },
+          allowComments: { type: 'boolean', default: true, description: 'Allow comments on this post' },
+          isUrgent: { type: 'boolean', description: 'Mark prayer post as urgent (only allowed for prayer posts)' },
+          postType: { type: 'string', enum: ['prayer', 'advice', 'testimony', 'gratitude'], description: 'Type of post' },
         },
       },
       UpdatePostInput: {

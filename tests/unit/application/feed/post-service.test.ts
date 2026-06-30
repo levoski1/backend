@@ -18,7 +18,9 @@ const validPost = new Post({
   userId: '223e4567-e89b-12d3-a456-426614174001',
   content: 'Test post content',
   isAnonymous: false,
-  postType: PostType.GENERAL,
+  isUrgent: false,
+  allowComments: true,
+  postType: PostType.PRAYER,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
 });
@@ -48,7 +50,7 @@ describe('PostService', () => {
         userId: '223e4567-e89b-12d3-a456-426614174001',
         content: 'Test post content',
         isAnonymous: false,
-        postType: PostType.GENERAL,
+        postType: PostType.PRAYER,
       });
 
       expect(mockPostRepo.create).toHaveBeenCalledTimes(1);
@@ -63,24 +65,27 @@ describe('PostService', () => {
       await postService.createPost({
         userId: '223e4567-e89b-12d3-a456-426614174001',
         content: 'Test post content',
-        postType: PostType.GENERAL,
+        postType: PostType.PRAYER,
       });
 
       const createdPost = mockPostRepo.create.mock.calls[0][0];
       expect(createdPost.isAnonymous).toBe(false);
     });
 
-    it('should default postType to GENERAL', async () => {
+    it('should create a prayer post with isUrgent and allowComments defaults', async () => {
       mockPostRepo.create.mockResolvedValue(validPost);
       mockPostRepo.findByIdWithRelations.mockResolvedValue(validPostWithRelations);
 
       await postService.createPost({
         userId: '223e4567-e89b-12d3-a456-426614174001',
         content: 'Test post content',
+        postType: PostType.PRAYER,
       });
 
       const createdPost = mockPostRepo.create.mock.calls[0][0];
-      expect(createdPost.postType).toBe(PostType.GENERAL);
+      expect(createdPost.postType).toBe(PostType.PRAYER);
+      expect(createdPost.isUrgent).toBe(false);
+      expect(createdPost.allowComments).toBe(true);
     });
   });
 
